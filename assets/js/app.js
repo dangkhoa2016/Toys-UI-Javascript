@@ -12,6 +12,10 @@ import {
   updateToyLikes,
 } from "./dom.js";
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function requireElement(selector) {
   const element = document.querySelector(selector);
 
@@ -139,6 +143,12 @@ export async function initApp() {
     const actionButton = event.target.closest("button[data-action]");
 
     if (!actionButton) {
+      return;
+    }
+
+    if (actionButton.dataset.action === "reload") {
+      setLoaderVisibility(elements.loader, true);
+      sleep(500).then(() => loadInitialToys());
       return;
     }
 

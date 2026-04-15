@@ -53,9 +53,25 @@ function createCollectionStatus(message, variant = "info") {
     variant === "error"
       ? "alert alert-danger toy-status-alert"
       : "alert alert-light toy-status-alert toy-status-alert-info";
-  const state = createElement("div", alertClassName, message);
+  const state = createElement("div", alertClassName);
+  const messageElement = createElement("p", "mb-0", message);
 
   state.setAttribute("role", "alert");
+
+  if (variant === "error") {
+    const actionRow = createElement("div", "toy-status-actions mt-3");
+    const reloadButton = createElement("button", "btn btn-danger toy-status-reload");
+
+    reloadButton.type = "button";
+    reloadButton.dataset.action = "reload";
+    reloadButton.textContent = "Reload data";
+
+    actionRow.append(reloadButton);
+    state.append(messageElement, actionRow);
+  } else {
+    state.append(messageElement);
+  }
+
   wrapper.append(state);
   return wrapper;
 }

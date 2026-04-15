@@ -122,6 +122,15 @@ img {
   line-height: 1.6;
 }
 
+.toy-status-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.toy-status-reload {
+  min-width: 10rem;
+}
+
 .toy-status-alert-info {
   color: #515da2;
   background: rgba(255, 255, 255, 0.92);
