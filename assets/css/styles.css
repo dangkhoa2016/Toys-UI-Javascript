@@ -33,32 +33,51 @@ img {
   width: auto;
 }
 
-.submit {
-  position: relative;
-  background-color: #e04b52;
-  border-radius: 5px;
-  height: 2rem;
-  width: max-content;
-  color: whitesmoke;
-  font-size: 18px;
-  justify-self: center;
-  font-family: monospace;
-  margin: 3px;
+#add-toy-form {
+  max-width: 52rem;
 }
 
-.submit:hover {
-  background-color: whitesmoke;
-  border: #e04b52 solid 1px;
-  color: #e04b52;
+.toy-form-card {
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 1rem;
 }
 
-.input-text {
-  border-radius: 5px;
-  height: 2rem;
-  width: 60%;
-  font-size: 18px;
-  font-family: monospace;
-  margin: 3px;
+.toy-form-card .form-label {
+  font-weight: 700;
+  color: #2f396f;
+}
+
+.toy-form-card .form-control {
+  min-height: 3rem;
+  border-color: rgba(81, 93, 162, 0.2);
+}
+
+.toy-form-card .form-control:focus {
+  border-color: rgba(81, 93, 162, 0.45);
+  box-shadow: 0 0 0 0.25rem rgba(81, 93, 162, 0.15);
+}
+
+.toy-form-submit {
+  min-height: 3rem;
+  white-space: nowrap;
+}
+
+.toy-form-hint {
+  color: #5e678f;
+}
+
+@media (max-width: 767.98px) {
+  .toy-form-actions {
+    align-items: stretch;
+  }
+
+  .toy-form-submit {
+    width: 100%;
+  }
+
+  .toy-form-hint {
+    text-align: center;
+  }
 }
 
 #toy-collection .card {
@@ -85,6 +104,9 @@ img {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 100%;
+  width: 100%;
+  max-width: 100%;
   min-height: calc(100vh - 13rem);
   padding: 1.5rem;
 }

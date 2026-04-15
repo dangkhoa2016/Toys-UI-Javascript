@@ -1,15 +1,51 @@
 const templates = {
   addToyForm: `
-    <form id='add-toy-form' class='mt-5 d-none'>
-      <h3>Create a toy!</h3>
+    <form id='add-toy-form' class='d-none mx-auto mt-4 text-start'>
+      <div class='card toy-form-card border-0 shadow-sm mx-auto'>
+        <div class='card-body p-4 p-md-4'>
+          <div class='mb-3'>
+            <h3 class='h4 mb-1'>Create a toy</h3>
+            <p class='text-muted mb-0'>Add a new character with a name and an image URL.</p>
+          </div>
 
-      <input type='text' name='name' value='' placeholder="Enter a toy's name..." class='input-text' />
-      <br />
-      <input type='text' name='image' value='' placeholder="Enter a toy's image URL..." class='input-text' />
-      <br />
-      <input type='submit' name='submit' value='Create New Toy' class='submit' />
+          <div class='row g-3'>
+            <div class='col-12 col-md-6'>
+              <label for='toy-name' class='form-label'>Toy name</label>
+              <input
+                id='toy-name'
+                type='text'
+                name='name'
+                value=''
+                placeholder="Enter a toy's name..."
+                class='form-control'
+                autocomplete='off'
+              />
+            </div>
 
-      <div role='alert' class='alert d-none alert-danger w-50 mx-auto mt-2 mb-0 p-2'></div>
+            <div class='col-12 col-md-6'>
+              <label for='toy-image' class='form-label'>Image URL</label>
+              <input
+                id='toy-image'
+                type='text'
+                name='image'
+                value=''
+                placeholder="Enter a toy's image URL..."
+                class='form-control'
+                autocomplete='off'
+              />
+            </div>
+
+            <div class='col-12 toy-form-actions d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 gap-md-3'>
+              <button type='submit' name='submit' class='btn btn-danger px-4 toy-form-submit'>Create New Toy</button>
+              <span class='form-text toy-form-hint my-0'>Use a valid image URL so the toy card renders correctly.</span>
+            </div>
+
+            <div class='col-12'>
+              <div role='alert' class='alert alert-danger d-none mb-0'></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </form>
   `,
   topAction: `
