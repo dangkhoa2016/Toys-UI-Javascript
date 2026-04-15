@@ -3,55 +3,55 @@
     {
       "id": 1,
       "name": "Buzz Lightyear",
-      "image": "/imgs/Buzz-Lightyear.png",
+      "image": "/assets/images/toys/Buzz-Lightyear.png",
       "likes": 11
     },
     {
       "id": 2,
       "name": "Jessie",
-      "image": "/imgs/Jessie.png",
+      "image": "/assets/images/toys/Jessie.png",
       "likes": 27
     },
     {
       "id": 3,
       "name": "Mr. Potato Head",
-      "image": "/imgs/Mr-potato-head.png",
+      "image": "/assets/images/toys/Mr-potato-head.png",
       "likes": 6
     },
     {
       "id": 4,
       "name": "Slinky Dog",
-      "image": "/imgs/Slinky-Dog.png",
+      "image": "/assets/images/toys/Slinky-Dog.png",
       "likes": 4
     },
     {
       "id": 5,
       "name": "Rex",
-      "image": "/imgs/Rex.png",
+      "image": "/assets/images/toys/Rex.png",
       "likes": 1
     },
     {
       "id": 6,
       "name": "Bo Peep",
-      "image": "/imgs/Bo-Peep.png",
+      "image": "/assets/images/toys/Bo-Peep.png",
       "likes": 2
     },
     {
       "id": 7,
       "name": "Hamm Pig",
-      "image": "/imgs/Hamm-Pig.png",
+      "image": "/assets/images/toys/Hamm-Pig.png",
       "likes": 0
     },
     {
       "id": 8,
       "name": "Little Green Men",
-      "image": "/imgs/Toy-Story-Alien.png",
-      "likes": -1
+      "image": "/assets/images/toys/Toy-Story-Alien.png",
+      "likes": 0
     },
     {
       "id": 9,
       "name": "Sheriff Woody",
-      "image": "/imgs/Sheriff-Woody.png",
+      "image": "/assets/images/toys/Sheriff-Woody.png",
       "likes": 0,
       "created_at": "2021-12-09T09:19:43.778Z",
       "updated_at": "2021-12-09T09:19:43.778Z"
@@ -59,7 +59,7 @@
     {
       "id": 10,
       "name": "Evil Pink Bear from Toy Story 3",
-      "image": "/imgs/Evil Pink Bear.jpg",
+      "image": "/assets/images/toys/Evil Pink Bear.jpg",
       "likes": 0,
       "created_at": "2021-12-09T09:21:06.085Z",
       "updated_at": "2021-12-09T09:21:06.085Z"
