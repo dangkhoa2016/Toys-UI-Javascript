@@ -11,6 +11,7 @@ body {
   margin: 0;
   font-family: monospace;
   background: #f8f9ff;
+  color: #233052;
 }
 
 img {
@@ -23,9 +24,8 @@ img {
 #toy-header {
   display: block;
   text-align: center;
-  background: #515da2;
-  opacity: 0.8;
-  padding: 1rem;
+  background: linear-gradient(135deg, #515da2, #39447d);
+  padding: 1rem 1rem 1.5rem;
 }
 
 #toy-header img {
@@ -33,13 +33,61 @@ img {
   width: auto;
 }
 
-#add-toy-form {
-  max-width: 52rem;
+.toy-controls-shell {
+  margin: -3rem auto 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.toy-controls {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(245, 247, 255, 0.98));
+  border-radius: 1.25rem;
+}
+
+.toy-controls-layout {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.toy-controls-eyebrow,
+.toy-modal-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #5a67ac;
+}
+
+.toy-controls-actions {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.toy-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.toy-field-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #41508d;
+}
+
+.toy-create-trigger {
+  min-height: 3rem;
+  align-self: end;
+}
+
+.toy-modal-content {
+  border-radius: 1.25rem;
+  background: linear-gradient(180deg, #ffffff, #f7f8ff);
 }
 
 .toy-form-card {
   background: rgba(255, 255, 255, 0.96);
   border-radius: 1rem;
+  box-shadow: none;
 }
 
 .toy-form-card .form-label {
@@ -64,20 +112,6 @@ img {
 
 .toy-form-hint {
   color: #5e678f;
-}
-
-@media (max-width: 767.98px) {
-  .toy-form-actions {
-    align-items: stretch;
-  }
-
-  .toy-form-submit {
-    width: 100%;
-  }
-
-  .toy-form-hint {
-    text-align: center;
-  }
 }
 
 #toy-collection .card {
@@ -135,6 +169,37 @@ img {
   color: #515da2;
   background: rgba(255, 255, 255, 0.92);
   border-color: rgba(81, 93, 162, 0.18);
+}
+
+@media (min-width: 992px) {
+  .toy-controls-layout {
+    grid-template-columns: minmax(0, 1.1fr) minmax(24rem, 0.9fr);
+    align-items: end;
+  }
+
+  .toy-controls-actions {
+    grid-template-columns: minmax(0, 1.35fr) minmax(12rem, 0.9fr) auto;
+    align-items: end;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .toy-controls-shell {
+    margin-top: -2.4rem;
+  }
+
+  .toy-form-actions {
+    align-items: stretch;
+  }
+
+  .toy-form-submit,
+  .toy-create-trigger {
+    width: 100%;
+  }
+
+  .toy-form-hint {
+    text-align: center;
+  }
 }
 
 

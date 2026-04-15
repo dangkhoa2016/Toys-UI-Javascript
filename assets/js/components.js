@@ -1,58 +1,97 @@
 const templates = {
   addToyForm: `
-    <form id='add-toy-form' class='d-none mx-auto mt-4 text-start'>
-      <div class='card toy-form-card border-0 shadow-sm mx-auto'>
-        <div class='card-body p-4 p-md-4'>
-          <div class='mb-3'>
-            <h3 class='h4 mb-1'>Create a toy</h3>
-            <p class='text-muted mb-0'>Add a new character with a name and an image URL.</p>
+    <div id='modal-add-toy' class='modal fade' tabindex='-1' aria-labelledby='modal-add-toy-title' aria-hidden='true'>
+      <div class='modal-dialog modal-dialog-centered modal-lg'>
+        <div class='modal-content toy-modal-content border-0'>
+          <div class='modal-header border-0 pb-0'>
+            <div>
+              <p class='toy-modal-eyebrow mb-2'>Toy workshop</p>
+              <h2 id='modal-add-toy-title' class='h3 mb-1'>Create a new toy</h2>
+              <p class='text-muted mb-0'>Add a character with a name and an image URL, then send it straight to Andy's shelf.</p>
+            </div>
+            <button type='button' class='btn-close' data-bs-dismiss='modal' aria-label='Close'></button>
           </div>
 
-          <div class='row g-3'>
-            <div class='col-12 col-md-6'>
-              <label for='toy-name' class='form-label'>Toy name</label>
-              <input
-                id='toy-name'
-                type='text'
-                name='name'
-                value=''
-                placeholder="Enter a toy's name..."
-                class='form-control'
-                autocomplete='off'
-              />
+          <div class='modal-body pt-3'>
+            <form id='add-toy-form' class='text-start'>
+              <div class='card toy-form-card border-0 shadow-sm mx-auto'>
+                <div class='card-body p-4 p-md-4'>
+                  <div class='row g-3'>
+                    <div class='col-12 col-md-6'>
+                      <label for='toy-name' class='form-label'>Toy name</label>
+                      <input
+                        id='toy-name'
+                        type='text'
+                        name='name'
+                        value=''
+                        placeholder="Enter a toy's name..."
+                        class='form-control'
+                        autocomplete='off'
+                      />
+                    </div>
+
+                    <div class='col-12 col-md-6'>
+                      <label for='toy-image' class='form-label'>Image URL</label>
+                      <input
+                        id='toy-image'
+                        type='text'
+                        name='image'
+                        value=''
+                        placeholder="Enter a toy's image URL..."
+                        class='form-control'
+                        autocomplete='off'
+                      />
+                    </div>
+
+                    <div class='col-12 toy-form-actions d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 gap-md-3'>
+                      <button type='submit' name='submit' class='btn btn-danger px-4 toy-form-submit'>Create New Toy</button>
+                      <span class='form-text toy-form-hint my-0'>Use a valid image URL so the toy card renders correctly.</span>
+                    </div>
+
+                    <div class='col-12'>
+                      <div role='alert' class='alert alert-danger d-none mb-0'></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+  topAction: `
+    <section class='toy-controls-shell'>
+      <div class='toy-controls card border-0 shadow-sm'>
+        <div class='card-body p-3 p-lg-4'>
+          <div class='toy-controls-layout'>
+            <div class='toy-controls-copy'>
+              <p class='toy-controls-eyebrow mb-2'>Toy Tale control room</p>
+              <h2 class='h4 mb-2'>Andy needs your help</h2>
+              <p class='text-muted mb-0'>Create new toys, search the shelf instantly, or reorder the collection by likes.</p>
             </div>
 
-            <div class='col-12 col-md-6'>
-              <label for='toy-image' class='form-label'>Image URL</label>
-              <input
-                id='toy-image'
-                type='text'
-                name='image'
-                value=''
-                placeholder="Enter a toy's image URL..."
-                class='form-control'
-                autocomplete='off'
-              />
-            </div>
+            <div class='toy-controls-actions'>
+              <label class='toy-field'>
+                <span class='toy-field-label'>Search by name</span>
+                <input id='toy-search' type='search' class='form-control' placeholder='Type a toy name...' autocomplete='off' />
+              </label>
 
-            <div class='col-12 toy-form-actions d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 gap-md-3'>
-              <button type='submit' name='submit' class='btn btn-danger px-4 toy-form-submit'>Create New Toy</button>
-              <span class='form-text toy-form-hint my-0'>Use a valid image URL so the toy card renders correctly.</span>
-            </div>
+              <label class='toy-field toy-field-sort'>
+                <span class='toy-field-label'>Sort by likes</span>
+                <select id='toy-sort' class='form-select'>
+                  <option value='default'>Default order</option>
+                  <option value='likes-desc'>Most liked first</option>
+                  <option value='likes-asc'>Least liked first</option>
+                </select>
+              </label>
 
-            <div class='col-12'>
-              <div role='alert' class='alert alert-danger d-none mb-0'></div>
+              <button class='btn btn-primary toy-create-trigger' id='new-toy-btn' type='button'>Add a new toy!</button>
             </div>
           </div>
         </div>
       </div>
-    </form>
-  `,
-  topAction: `
-    <p class='text-center'>
-      Andy needs your help!
-      <button class='btn btn-primary' id='new-toy-btn'>Add a new toy!</button>
-    </p>
+    </section>
   `,
   modalConfirm: `
     <div id='modal-delete-toy' role='dialog' aria-describedby='modal-delete-toy' class='modal fade' aria-modal='true'>

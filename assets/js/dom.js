@@ -76,42 +76,15 @@ function createCollectionStatus(message, variant = "info") {
   return wrapper;
 }
 
-export function renderToyList(container, toys) {
+export function renderToyList(container, toys, options = {}) {
+  const { emptyMessage = "No toys available yet." } = options;
+
   if (!toys.length) {
-    container.replaceChildren(createCollectionStatus("No toys available yet."));
+    container.replaceChildren(createCollectionStatus(emptyMessage));
     return;
   }
 
   container.replaceChildren(...toys.map(createToyCard));
-}
-
-export function prependToyCard(container, toy) {
-  const card = createToyCard(toy);
-  const statusState = container.querySelector(".toy-status-shell");
-
-  if (statusState) {
-    container.replaceChildren(card);
-    return;
-  }
-
-  container.prepend(card);
-}
-
-export function updateToyLikes(container, toyId, likes) {
-  const likeCount = container.querySelector(`[data-id="${toyId}"] .likes-count`);
-
-  if (likeCount) {
-    likeCount.textContent = String(likes);
-  }
-}
-
-export function removeToyCard(container, toyId) {
-  const card = container.querySelector(`[data-id="${toyId}"]`);
-  card?.remove();
-
-  if (!container.children.length) {
-    container.append(createCollectionStatus("No toys available yet."));
-  }
 }
 
 export function setDeleteTarget(modalElement, toy) {

@@ -1,7 +1,5 @@
 import { createToy, deleteToy, fetchOrSeedToys, likeToy } from "./api.js";
 import {
-  prependToyCard,
-  removeToyCard,
   renderToyList,
   setDeleteTarget,
   setFormError,
@@ -9,7 +7,6 @@ import {
   setToyCardBusy,
   showCollectionMessage,
   toggleVisibility,
-  updateToyLikes,
 } from "./dom.js";
 
 function sleep(ms) {
@@ -30,24 +27,63 @@ function syncToyState(state, toys) {
   state.toys = new Map(toys.map((toy) => [String(toy.id), toy]));
 }
 
+function prependToyState(state, toy) {
+  state.toys = new Map([[String(toy.id), toy], ...state.toys.entries()]);
+}
+
+function getVisibleToys(state) {
+  const normalizedSearchTerm = state.searchTerm.trim().toLowerCase();
+  const toys = Array.from(state.toys.values()).filter((toy) => {
+    if (!normalizedSearchTerm) {
+      return true;
+    }
+
+    return toy.name.toLowerCase().includes(normalizedSearchTerm);
+  });
+
+  if (state.sortOrder === "likes-desc") {
+    return toys.sort((left, right) => right.likes - left.likes || left.name.localeCompare(right.name));
+  }
+
+  if (state.sortOrder === "likes-asc") {
+    return toys.sort((left, right) => left.likes - right.likes || left.name.localeCompare(right.name));
+  }
+
+  return toys;
+}
+
 export async function initApp() {
   const elements = {
     collection: requireElement("#toy-collection"),
     loader: requireElement(".loader"),
     toTopButton: requireElement("#to-top"),
     addToyButton: requireElement("#new-toy-btn"),
+    addToyModal: requireElement("#modal-add-toy"),
     addToyForm: requireElement("#add-toy-form"),
+    searchInput: requireElement("#toy-search"),
+    sortSelect: requireElement("#toy-sort"),
     deleteModal: requireElement("#modal-delete-toy"),
     deleteConfirmButton: requireElement("#modal-delete-toy .btn-confirm"),
   };
 
   const state = {
     confirmDeleteToyId: null,
-    isAddToyVisible: false,
+    searchTerm: "",
+    sortOrder: "default",
     toys: new Map(),
   };
 
+  const addToyModal = new bootstrap.Modal(elements.addToyModal);
   const modalConfirm = new bootstrap.Modal(elements.deleteModal);
+
+  function renderVisibleToys() {
+    const visibleToys = getVisibleToys(state);
+    const emptyMessage = state.toys.size
+      ? "No toys match the current search or sort view."
+      : "No toys available yet.";
+
+    renderToyList(elements.collection, visibleToys, { emptyMessage });
+  }
 
   function handleScroll() {
     toggleVisibility(elements.toTopButton, window.scrollY > 300);
@@ -59,7 +95,7 @@ export async function initApp() {
     try {
       const toys = await fetchOrSeedToys();
       syncToyState(state, toys);
-      renderToyList(elements.collection, toys);
+      renderVisibleToys();
     } catch (error) {
       console.error("Failed to load toys", error);
       showCollectionMessage(elements.collection, "Unable to load toys right now.");
@@ -86,11 +122,10 @@ export async function initApp() {
         throw new Error("The API did not return a new toy record.");
       }
 
-      state.toys.set(String(toy.id), toy);
-      prependToyCard(elements.collection, toy);
+      prependToyState(state, toy);
+      renderVisibleToys();
       form.reset();
-      state.isAddToyVisible = false;
-      toggleVisibility(elements.addToyForm, false);
+      addToyModal.hide();
     } catch (error) {
       console.error("Failed to create toy", error);
       setFormError(form, "Unable to create toy. Check the values and try again.");
@@ -111,7 +146,7 @@ export async function initApp() {
     try {
       const updatedToy = await likeToy(toy);
       state.toys.set(String(updatedToy.id), updatedToy);
-      updateToyLikes(elements.collection, toyId, updatedToy.likes);
+      renderVisibleToys();
     } catch (error) {
       console.error(`Failed to like toy ${toyId}`, error);
     } finally {
@@ -130,7 +165,7 @@ export async function initApp() {
     try {
       await deleteToy(toyId);
       state.toys.delete(toyId);
-      removeToyCard(elements.collection, toyId);
+      renderVisibleToys();
       state.confirmDeleteToyId = null;
       modalConfirm.hide();
     } catch (error) {
@@ -180,14 +215,24 @@ export async function initApp() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
   elements.addToyButton.addEventListener("click", () => {
-    state.isAddToyVisible = !state.isAddToyVisible;
-    toggleVisibility(elements.addToyForm, state.isAddToyVisible);
-
-    if (state.isAddToyVisible) {
-      elements.addToyForm.querySelector("[name='name']")?.focus();
-    }
+    addToyModal.show();
+  });
+  elements.addToyModal.addEventListener("shown.bs.modal", () => {
+    elements.addToyForm.querySelector("[name='name']")?.focus();
+  });
+  elements.addToyModal.addEventListener("hidden.bs.modal", () => {
+    elements.addToyForm.reset();
+    setFormError(elements.addToyForm, "");
   });
   elements.addToyForm.addEventListener("submit", handleCreateToy);
+  elements.searchInput.addEventListener("input", (event) => {
+    state.searchTerm = event.currentTarget.value;
+    renderVisibleToys();
+  });
+  elements.sortSelect.addEventListener("change", (event) => {
+    state.sortOrder = event.currentTarget.value;
+    renderVisibleToys();
+  });
   elements.collection.addEventListener("click", handleCollectionClick);
   elements.deleteConfirmButton.addEventListener("click", handleDeleteToy);
 

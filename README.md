@@ -19,3 +19,4 @@ Static JavaScript client for the Toy API Server.
 - Toy cards use `loading="lazy"` for image loading.
 - Legacy image paths such as `/imgs/...` and `/toys/...` are normalized in `config.js` for compatibility.
 - The client points to the local API in localhost development and to the forwarded hosted API in remote environments.
+- Search and sort are client-side views driven from the current in-memory toy state.
