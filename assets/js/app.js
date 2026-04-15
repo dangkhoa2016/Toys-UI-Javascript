@@ -1,8 +1,12 @@
-import { createToy, deleteToy, fetchOrSeedToys, likeToy } from "./api.js";
+import { createToy, deleteToy, fetchOrSeedToys, likeToy, updateToy } from "./api.js";
 import {
+  animateToyRemoval,
+  createToast,
+  markToyCardUpdated,
   reorderToyCards,
   renderToyList,
   setDeleteTarget,
+  setEditTarget,
   setFormError,
   setLoaderVisibility,
   setToyCardBusy,
@@ -62,6 +66,10 @@ function shouldReorderAfterLike(state) {
   return state.sortOrder === "likes-desc" || state.sortOrder === "likes-asc";
 }
 
+function getErrorMessage(error, fallbackMessage) {
+  return error instanceof Error && error.message ? error.message : fallbackMessage;
+}
+
 export async function initApp() {
   const elements = {
     collection: requireElement("#toy-collection"),
@@ -70,21 +78,45 @@ export async function initApp() {
     addToyButton: requireElement("#new-toy-btn"),
     addToyModal: requireElement("#modal-add-toy"),
     addToyForm: requireElement("#add-toy-form"),
+    editToyModal: requireElement("#modal-edit-toy"),
+    editToyForm: requireElement("#edit-toy-form"),
     searchInput: requireElement("#toy-search"),
     sortSelect: requireElement("#toy-sort"),
     deleteModal: requireElement("#modal-delete-toy"),
     deleteConfirmButton: requireElement("#modal-delete-toy .btn-confirm"),
+    toastRegion: requireElement("#toast-region"),
   };
 
   const state = {
     confirmDeleteToyId: null,
+    editingToyId: null,
     searchTerm: "",
     sortOrder: "default",
     toys: new Map(),
   };
 
   const addToyModal = new bootstrap.Modal(elements.addToyModal);
+  const editToyModal = new bootstrap.Modal(elements.editToyModal);
   const modalConfirm = new bootstrap.Modal(elements.deleteModal);
+
+  function showAppToast({ title, message, variant = "primary", delay = 5000 }) {
+    const toastElement = createToast({ title, message, variant });
+    const toast = new bootstrap.Toast(toastElement, {
+      autohide: true,
+      delay,
+    });
+
+    elements.toastRegion.append(toastElement);
+    toastElement.addEventListener(
+      "hidden.bs.toast",
+      () => {
+        toastElement.remove();
+      },
+      { once: true }
+    );
+
+    toast.show();
+  }
 
   function renderVisibleToys() {
     const visibleToys = getVisibleToys(state);
@@ -109,6 +141,12 @@ export async function initApp() {
     } catch (error) {
       console.error("Failed to load toys", error);
       showCollectionMessage(elements.collection, "Unable to load toys right now.");
+      showAppToast({
+        title: "Unable to load toys",
+        message: "The collection could not be loaded from the API.",
+        variant: "danger",
+        delay: 5000,
+      });
     } finally {
       setLoaderVisibility(elements.loader, false);
     }
@@ -136,12 +174,88 @@ export async function initApp() {
       renderVisibleToys();
       form.reset();
       addToyModal.hide();
+      showAppToast({
+        title: "Toy created",
+        message: `${toy.name} is now on the shelf.`,
+        variant: "success",
+      });
     } catch (error) {
       console.error("Failed to create toy", error);
-      setFormError(form, "Unable to create toy. Check the values and try again.");
+      setFormError(form, getErrorMessage(error, "Unable to create toy. Check the values and try again."));
+      showAppToast({
+        title: "Create failed",
+        message: getErrorMessage(error, "The toy could not be created."),
+        variant: "danger",
+        delay: 3600,
+      });
     } finally {
       setLoaderVisibility(elements.loader, false);
     }
+  }
+
+  async function handleEditToy(event) {
+    event.preventDefault();
+
+    if (!state.editingToyId) {
+      return;
+    }
+
+    const toyId = String(state.editingToyId);
+    const currentToy = state.toys.get(toyId);
+
+    if (!currentToy) {
+      return;
+    }
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    setFormError(form, "");
+    setToyCardBusy(elements.collection, toyId, true);
+    setLoaderVisibility(elements.loader, true);
+
+    try {
+      const updatedToy = await updateToy(toyId, {
+        name: formData.get("name"),
+        image: formData.get("image"),
+        likes: currentToy.likes,
+      });
+
+      state.toys.set(toyId, updatedToy);
+      renderVisibleToys();
+      markToyCardUpdated(elements.collection, toyId);
+      editToyModal.hide();
+      showAppToast({
+        title: "Toy updated",
+        message: `${updatedToy.name} was saved successfully.`,
+        variant: "primary",
+      });
+    } catch (error) {
+      console.error(`Failed to update toy ${toyId}`, error);
+      setFormError(form, getErrorMessage(error, "Unable to update toy. Check the values and try again."));
+      showAppToast({
+        title: "Update failed",
+        message: getErrorMessage(error, "The toy could not be updated."),
+        variant: "danger",
+        delay: 3600,
+      });
+    } finally {
+      setToyCardBusy(elements.collection, toyId, false);
+      setLoaderVisibility(elements.loader, false);
+    }
+  }
+
+  function beginEditToy(toyId) {
+    const toy = state.toys.get(String(toyId));
+
+    if (!toy) {
+      return;
+    }
+
+    state.editingToyId = String(toyId);
+    setFormError(elements.editToyForm, "");
+    setEditTarget(elements.editToyModal, toy);
+    editToyModal.show();
   }
 
   async function handleLikeToy(toyId) {
@@ -168,8 +282,22 @@ export async function initApp() {
       } else if (shouldRerenderAfterLike(state)) {
         renderVisibleToys();
       }
+
+      markToyCardUpdated(elements.collection, toyId);
+      showAppToast({
+        title: "Likes updated",
+        message: `${updatedToy.name} now has ${updatedToy.likes} likes.`,
+        variant: "success",
+        delay: 5000,
+      });
     } catch (error) {
       console.error(`Failed to like toy ${toyId}`, error);
+      showAppToast({
+        title: "Like failed",
+        message: getErrorMessage(error, "The like count could not be updated."),
+        variant: "danger",
+        delay: 5000,
+      });
     } finally {
       setToyCardBusy(elements.collection, toyId, false);
     }
@@ -181,17 +309,37 @@ export async function initApp() {
     }
 
     const toyId = String(state.confirmDeleteToyId);
+    const toy = state.toys.get(toyId);
+
+    if (!toy) {
+      state.confirmDeleteToyId = null;
+      modalConfirm.hide();
+      return;
+    }
+
     setToyCardBusy(elements.collection, toyId, true);
 
     try {
       await deleteToy(toyId);
+      modalConfirm.hide();
+      await animateToyRemoval(elements.collection, toyId);
       state.toys.delete(toyId);
       renderVisibleToys();
       state.confirmDeleteToyId = null;
-      modalConfirm.hide();
+      showAppToast({
+        title: "Toy deleted",
+        message: `${toy.name} was removed from the shelf.`,
+        variant: "warning",
+      });
     } catch (error) {
       console.error(`Failed to delete toy ${toyId}`, error);
       setToyCardBusy(elements.collection, toyId, false);
+      showAppToast({
+        title: "Delete failed",
+        message: getErrorMessage(error, "The toy could not be deleted."),
+        variant: "danger",
+        delay: 3600,
+      });
     }
   }
 
@@ -211,6 +359,11 @@ export async function initApp() {
     const toyId = actionButton.closest("[data-id]")?.dataset.id;
 
     if (!toyId) {
+      return;
+    }
+
+    if (actionButton.dataset.action === "edit") {
+      beginEditToy(toyId);
       return;
     }
 
@@ -245,7 +398,19 @@ export async function initApp() {
     elements.addToyForm.reset();
     setFormError(elements.addToyForm, "");
   });
+  elements.editToyModal.addEventListener("shown.bs.modal", () => {
+    elements.editToyForm.querySelector("[name='name']")?.focus();
+  });
+  elements.editToyModal.addEventListener("hidden.bs.modal", () => {
+    state.editingToyId = null;
+    elements.editToyForm.reset();
+    setFormError(elements.editToyForm, "");
+  });
+  elements.deleteModal.addEventListener("hidden.bs.modal", () => {
+    state.confirmDeleteToyId = null;
+  });
   elements.addToyForm.addEventListener("submit", handleCreateToy);
+  elements.editToyForm.addEventListener("submit", handleEditToy);
   elements.searchInput.addEventListener("input", (event) => {
     state.searchTerm = event.currentTarget.value;
     renderVisibleToys();

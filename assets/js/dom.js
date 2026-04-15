@@ -12,8 +12,14 @@ function createElement(tagName, className, textContent) {
   return element;
 }
 
+function animateCardEntry(card) {
+  requestAnimationFrame(() => {
+    card.classList.remove("is-entering");
+  });
+}
+
 function createToyCard(toy) {
-  const column = createElement("div", "col");
+  const column = createElement("div", "col toy-card-shell is-entering");
   column.dataset.id = String(toy.id);
 
   const card = createElement("article", "card toy-card");
@@ -28,18 +34,23 @@ function createToyCard(toy) {
   const likeCount = createElement("span", "likes-count", String(toy.likes));
   likeText.append(likeCount, document.createTextNode(" likes"));
 
-  const buttonRow = createElement("div", "d-flex gap-2 flex-wrap");
+  const buttonRow = createElement("div", "d-flex gap-2 flex-wrap toy-card-actions");
   const likeButton = createElement("button", "btn btn-success");
   likeButton.type = "button";
   likeButton.dataset.action = "like";
   likeButton.textContent = "Like <3";
+
+  const editButton = createElement("button", "btn btn-outline-primary");
+  editButton.type = "button";
+  editButton.dataset.action = "edit";
+  editButton.textContent = "Edit";
 
   const deleteButton = createElement("button", "btn btn-danger");
   deleteButton.type = "button";
   deleteButton.dataset.action = "delete";
   deleteButton.textContent = "Delete";
 
-  buttonRow.append(likeButton, deleteButton);
+  buttonRow.append(likeButton, editButton, deleteButton);
   cardBody.append(title, likeText, buttonRow);
   card.append(image, cardBody);
   column.append(card);
@@ -130,7 +141,10 @@ export function renderToyList(container, toys, options = {}) {
       return;
     }
 
-    container.append(createToyCard(toy));
+    const nextCard = createToyCard(toy);
+
+    container.append(nextCard);
+    animateCardEntry(nextCard);
   });
 }
 
@@ -153,12 +167,47 @@ export function reorderToyCards(container, toys) {
     }
   }
 
+  const previousRects = new Map(
+    Array.from(cardsById.entries()).map(([toyId, card]) => [toyId, card.getBoundingClientRect()])
+  );
+
   toys.forEach((toy) => {
     const card = cardsById.get(String(toy.id));
 
     if (card) {
       container.append(card);
     }
+  });
+
+  cardsById.forEach((card, toyId) => {
+    const previousRect = previousRects.get(toyId);
+    const nextRect = card.getBoundingClientRect();
+    const deltaX = previousRect.left - nextRect.left;
+    const deltaY = previousRect.top - nextRect.top;
+
+    if (!deltaX && !deltaY) {
+      return;
+    }
+
+    card.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+    card.getBoundingClientRect();
+    card.classList.add("is-reordering");
+
+    requestAnimationFrame(() => {
+      card.style.transform = "";
+    });
+
+    card.addEventListener(
+      "transitionend",
+      (event) => {
+        if (event.propertyName !== "transform") {
+          return;
+        }
+
+        card.classList.remove("is-reordering");
+      },
+      { once: true }
+    );
   });
 
   return true;
@@ -169,6 +218,24 @@ export function setDeleteTarget(modalElement, toy) {
 
   if (toyInfo) {
     toyInfo.textContent = `[${toy.id}] ${toy.name}`;
+  }
+}
+
+export function setEditTarget(modalElement, toy) {
+  const toyInfo = modalElement.querySelector(".toy-edit-info");
+  const nameInput = modalElement.querySelector("[name='name']");
+  const imageInput = modalElement.querySelector("[name='image']");
+
+  if (toyInfo) {
+    toyInfo.textContent = `#${toy.id} ${toy.name}`;
+  }
+
+  if (nameInput) {
+    nameInput.value = toy.name;
+  }
+
+  if (imageInput) {
+    imageInput.value = toy.image;
   }
 }
 
@@ -212,6 +279,74 @@ export function setToyCardBusy(container, toyId, isBusy) {
   toyCard.querySelectorAll("button").forEach((button) => {
     button.disabled = isBusy;
   });
+}
+
+export function markToyCardUpdated(container, toyId) {
+  const toyCard = container.querySelector(`[data-id="${toyId}"] .toy-card`);
+
+  if (!toyCard) {
+    return;
+  }
+
+  toyCard.classList.remove("toy-card-updated");
+  toyCard.getBoundingClientRect();
+  toyCard.classList.add("toy-card-updated");
+  toyCard.addEventListener(
+    "animationend",
+    () => {
+      toyCard.classList.remove("toy-card-updated");
+    },
+    { once: true }
+  );
+}
+
+export function animateToyRemoval(container, toyId) {
+  const toyCard = container.querySelector(`[data-id="${toyId}"]`);
+
+  if (!toyCard) {
+    return Promise.resolve(false);
+  }
+
+  return new Promise((resolve) => {
+    let completed = false;
+
+    const finish = () => {
+      if (completed) {
+        return;
+      }
+
+      completed = true;
+      toyCard.remove();
+      resolve(true);
+    };
+
+    toyCard.classList.add("is-removing");
+    toyCard.addEventListener("animationend", finish, { once: true });
+    window.setTimeout(finish, 260);
+  });
+}
+
+export function createToast({ title, message, variant = "primary" }) {
+  const toast = createElement("div", `toast toy-toast toy-toast-${variant}`);
+  const layout = createElement("div", "d-flex justify-content-between");
+  const body = createElement("div", "toast-body");
+  const titleElement = createElement("div", "toy-toast-title", title);
+  const messageElement = createElement("div", "toy-toast-message", message);
+  const dismissButton = createElement("button", "btn-close me-2 mt-2");
+
+  toast.role = "status";
+  toast.ariaLive = "polite";
+  toast.ariaAtomic = "true";
+
+  dismissButton.type = "button";
+  dismissButton.dataset.bsDismiss = "toast";
+  dismissButton.ariaLabel = "Close";
+
+  body.append(titleElement, messageElement);
+  layout.append(body, dismissButton);
+  toast.append(layout);
+
+  return toast;
 }
 
 export function showCollectionMessage(container, message) {

@@ -1,6 +1,7 @@
 @import url("https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css");
 
 add-toy-form,
+edit-toy-form,
 modal-confirm,
 mosaic-loader,
 top-action {
@@ -44,11 +45,6 @@ img {
   border-radius: 1.25rem;
 }
 
-.toy-controls-layout {
-  display: grid;
-  gap: 1.25rem;
-}
-
 .toy-controls-eyebrow,
 .toy-modal-eyebrow {
   text-transform: uppercase;
@@ -58,9 +54,13 @@ img {
   color: #5a67ac;
 }
 
-.toy-controls-actions {
-  display: grid;
-  gap: 0.9rem;
+.toy-controls-copy {
+  max-width: 28rem;
+}
+
+.toy-controls-copy .text-muted {
+  max-width: 30rem;
+  line-height: 1.6;
 }
 
 .toy-field {
@@ -74,9 +74,19 @@ img {
   color: #41508d;
 }
 
+.toy-control-input {
+  min-height: 3rem;
+  border-color: rgba(81, 93, 162, 0.2);
+}
+
+.toy-control-input:focus {
+  border-color: rgba(81, 93, 162, 0.45);
+  box-shadow: 0 0 0 0.25rem rgba(81, 93, 162, 0.15);
+}
+
 .toy-create-trigger {
   min-height: 3rem;
-  align-self: end;
+  white-space: nowrap;
 }
 
 .toy-modal-content {
@@ -118,11 +128,44 @@ img {
   height: 100%;
   border: 0;
   box-shadow: 0 12px 32px rgba(81, 93, 162, 0.12);
+  transition: box-shadow 200ms ease, transform 200ms ease;
 }
 
 #toy-collection .card img {
   height: 260px;
   object-fit: contain;
+}
+
+.toy-card-shell {
+  transform-origin: center top;
+  transition: opacity 220ms ease, transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.toy-card-shell.is-entering {
+  opacity: 0;
+  transform: translateY(18px) scale(0.98);
+}
+
+.toy-card-shell.is-reordering {
+  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.toy-card-shell.is-removing {
+  animation: toy-card-exit 220ms ease forwards;
+}
+
+.toy-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 36px rgba(81, 93, 162, 0.18);
+}
+
+.toy-card-updated {
+  animation: toy-card-pulse 520ms ease;
+}
+
+.toy-card-actions .btn {
+  flex: 1 1 0;
+  min-width: 7rem;
 }
 
 .toy-card.is-busy {
@@ -171,15 +214,56 @@ img {
   border-color: rgba(81, 93, 162, 0.18);
 }
 
-@media (min-width: 992px) {
-  .toy-controls-layout {
-    grid-template-columns: minmax(0, 1.1fr) minmax(24rem, 0.9fr);
-    align-items: end;
-  }
+.toast-container {
+  z-index: 1090;
+}
 
-  .toy-controls-actions {
-    grid-template-columns: minmax(0, 1.35fr) minmax(12rem, 0.9fr) auto;
-    align-items: end;
+.toy-toast {
+  min-width: min(22rem, calc(100vw - 2rem));
+  border: 0;
+  border-radius: 1rem;
+  box-shadow: 0 18px 44px rgba(34, 46, 94, 0.18);
+  backdrop-filter: blur(10px);
+}
+
+.toy-toast .toast-body {
+  padding: 0.9rem 1rem 1rem;
+}
+
+.toy-toast-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+}
+
+.toy-toast-message {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.toy-toast-primary {
+  background: rgba(81, 93, 162, 0.96);
+  color: #fff;
+}
+
+.toy-toast-success {
+  background: rgba(33, 116, 87, 0.96);
+  color: #fff;
+}
+
+.toy-toast-warning {
+  background: rgba(253, 237, 187, 0.98);
+  color: #5a4300;
+}
+
+.toy-toast-danger {
+  background: rgba(168, 45, 65, 0.97);
+  color: #fff;
+}
+
+@media (min-width: 1200px) {
+  .toy-controls-copy {
+    padding-right: 1rem;
   }
 }
 
@@ -195,6 +279,10 @@ img {
   .toy-form-submit,
   .toy-create-trigger {
     width: 100%;
+  }
+
+  .toy-card-actions .btn {
+    min-width: 100%;
   }
 
   .toy-form-hint {
@@ -320,5 +408,31 @@ img {
   }
   100% {
     background-color: transparent;
+  }
+}
+
+@keyframes toy-card-exit {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+}
+
+@keyframes toy-card-pulse {
+  0% {
+    box-shadow: 0 12px 32px rgba(81, 93, 162, 0.12);
+  }
+
+  45% {
+    box-shadow: 0 0 0 0.45rem rgba(81, 93, 162, 0.12), 0 18px 36px rgba(81, 93, 162, 0.22);
+  }
+
+  100% {
+    box-shadow: 0 12px 32px rgba(81, 93, 162, 0.12);
   }
 }
