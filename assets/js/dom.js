@@ -47,6 +47,28 @@ function createToyCard(toy) {
   return column;
 }
 
+function syncToyCard(card, toy) {
+  const image = card.querySelector("img");
+  const title = card.querySelector(".card-title");
+  const likesCount = card.querySelector(".likes-count");
+
+  if (image) {
+    if (image.getAttribute("src") !== toy.image) {
+      image.src = toy.image;
+    }
+
+    image.alt = toy.name;
+  }
+
+  if (title) {
+    title.textContent = toy.name;
+  }
+
+  if (likesCount) {
+    likesCount.textContent = String(toy.likes);
+  }
+}
+
 function createCollectionStatus(message, variant = "info") {
   const wrapper = createElement("div", "col-12 toy-status-shell");
   const alertClassName =
@@ -84,7 +106,62 @@ export function renderToyList(container, toys, options = {}) {
     return;
   }
 
-  container.replaceChildren(...toys.map(createToyCard));
+  container.querySelector(".toy-status-shell")?.remove();
+
+  const nextToyIds = new Set(toys.map((toy) => String(toy.id)));
+  const existingCards = new Map(
+    Array.from(container.querySelectorAll("[data-id]")).map((card) => [card.dataset.id, card])
+  );
+
+  existingCards.forEach((card, toyId) => {
+    if (!nextToyIds.has(toyId)) {
+      card.remove();
+      existingCards.delete(toyId);
+    }
+  });
+
+  toys.forEach((toy) => {
+    const toyId = String(toy.id);
+    const existingCard = existingCards.get(toyId);
+
+    if (existingCard) {
+      syncToyCard(existingCard, toy);
+      container.append(existingCard);
+      return;
+    }
+
+    container.append(createToyCard(toy));
+  });
+}
+
+export function updateToyLikes(container, toyId, likes) {
+  const likesCount = container.querySelector(`[data-id="${toyId}"] .likes-count`);
+
+  if (likesCount) {
+    likesCount.textContent = String(likes);
+  }
+}
+
+export function reorderToyCards(container, toys) {
+  const cardsById = new Map(
+    Array.from(container.querySelectorAll("[data-id]")).map((card) => [card.dataset.id, card])
+  );
+
+  for (const toy of toys) {
+    if (!cardsById.has(String(toy.id))) {
+      return false;
+    }
+  }
+
+  toys.forEach((toy) => {
+    const card = cardsById.get(String(toy.id));
+
+    if (card) {
+      container.append(card);
+    }
+  });
+
+  return true;
 }
 
 export function setDeleteTarget(modalElement, toy) {

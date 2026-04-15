@@ -1,5 +1,6 @@
 import { createToy, deleteToy, fetchOrSeedToys, likeToy } from "./api.js";
 import {
+  reorderToyCards,
   renderToyList,
   setDeleteTarget,
   setFormError,
@@ -7,6 +8,7 @@ import {
   setToyCardBusy,
   showCollectionMessage,
   toggleVisibility,
+  updateToyLikes,
 } from "./dom.js";
 
 function sleep(ms) {
@@ -50,6 +52,14 @@ function getVisibleToys(state) {
   }
 
   return toys;
+}
+
+function shouldRerenderAfterLike(state) {
+  return state.sortOrder !== "default";
+}
+
+function shouldReorderAfterLike(state) {
+  return state.sortOrder === "likes-desc" || state.sortOrder === "likes-asc";
 }
 
 export async function initApp() {
@@ -146,7 +156,18 @@ export async function initApp() {
     try {
       const updatedToy = await likeToy(toy);
       state.toys.set(String(updatedToy.id), updatedToy);
-      renderVisibleToys();
+      updateToyLikes(elements.collection, toyId, updatedToy.likes);
+
+      if (shouldReorderAfterLike(state)) {
+        const reorderedToys = getVisibleToys(state);
+        const reordered = reorderToyCards(elements.collection, reorderedToys);
+
+        if (!reordered) {
+          renderVisibleToys();
+        }
+      } else if (shouldRerenderAfterLike(state)) {
+        renderVisibleToys();
+      }
     } catch (error) {
       console.error(`Failed to like toy ${toyId}`, error);
     } finally {
