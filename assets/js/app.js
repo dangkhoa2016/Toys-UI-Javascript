@@ -7,17 +7,31 @@ import {
   renderToyList,
   setDeleteTarget,
   setEditTarget,
+  setFieldError,
   setFormError,
+  setImagePreview,
   setLoaderVisibility,
+  resetFormValidation,
   setToyCardBusy,
   showCollectionMessage,
   toggleVisibility,
   updateToyLikes,
 } from "./dom.js";
+import { toApiImageUrl } from "./config.js";
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+const TOY_NAME_MIN_LENGTH = 2;
+const TOY_NAME_MAX_LENGTH = 120;
+const ALLOWED_IMAGE_PROTOCOLS = new Set(["http:", "https:"]);
+const IMAGE_PREVIEW_DEBOUNCE_MS = 300;
+const DEFAULT_PREVIEW_PLACEHOLDER = "Preview will appear here after the image URL is checked.";
+const INVALID_PREVIEW_PLACEHOLDER = "Enter a valid image URL or local toy image path to preview it.";
+const ERROR_PREVIEW_PLACEHOLDER = "This image could not be loaded in preview.";
+
+const previewStateByForm = new WeakMap();
 
 function requireElement(selector) {
   const element = document.querySelector(selector);
@@ -68,6 +82,239 @@ function shouldReorderAfterLike(state) {
 
 function getErrorMessage(error, fallbackMessage) {
   return error instanceof Error && error.message ? error.message : fallbackMessage;
+}
+
+function getPreviewState(form) {
+  const currentState = previewStateByForm.get(form);
+
+  if (currentState) {
+    return currentState;
+  }
+
+  const nextState = {
+    source: "",
+    status: "idle",
+    timeoutId: 0,
+    token: 0,
+  };
+
+  previewStateByForm.set(form, nextState);
+  return nextState;
+}
+
+function patchPreviewState(form, updates) {
+  const nextState = { ...getPreviewState(form), ...updates };
+
+  previewStateByForm.set(form, nextState);
+  return nextState;
+}
+
+function clearPreviewTimer(form) {
+  const previewState = getPreviewState(form);
+
+  if (previewState.timeoutId) {
+    window.clearTimeout(previewState.timeoutId);
+    patchPreviewState(form, { timeoutId: 0 });
+  }
+}
+
+function readToyFormValues(form) {
+  const formData = new FormData(form);
+
+  return {
+    name: String(formData.get("name") ?? "").trim(),
+    image: String(formData.get("image") ?? "").trim(),
+  };
+}
+
+function isSupportedImageUrl(imageUrl) {
+  try {
+    const parsedUrl = new URL(imageUrl);
+    return ALLOWED_IMAGE_PROTOCOLS.has(parsedUrl.protocol);
+  } catch {
+    return false;
+  }
+}
+
+function validateToyField(fieldName, values) {
+  if (fieldName === "name") {
+    if (!values.name) {
+      return "Toy name is required.";
+    }
+
+    if (values.name.length < TOY_NAME_MIN_LENGTH) {
+      return `Toy name must have at least ${TOY_NAME_MIN_LENGTH} characters.`;
+    }
+
+    if (values.name.length > TOY_NAME_MAX_LENGTH) {
+      return `Toy name must be ${TOY_NAME_MAX_LENGTH} characters or fewer.`;
+    }
+
+    return "";
+  }
+
+  if (fieldName === "image") {
+    if (!values.image) {
+      return "Image URL is required.";
+    }
+
+    const normalizedImageUrl = toApiImageUrl(values.image);
+
+    if (!normalizedImageUrl || !isSupportedImageUrl(normalizedImageUrl)) {
+      return "Enter an absolute URL or a local toy image path.";
+    }
+  }
+
+  return "";
+}
+
+function inspectToyForm(form, { currentToy = null } = {}) {
+  const values = readToyFormValues(form);
+  const fieldNames = ["name", "image"];
+  const fieldErrors = new Map(
+    fieldNames.map((fieldName) => [fieldName, validateToyField(fieldName, values)])
+  );
+  const hasFieldErrors = Array.from(fieldErrors.values()).some(Boolean);
+  const normalizedImageUrl = values.image && !fieldErrors.get("image") ? toApiImageUrl(values.image) : "";
+  let isUnchanged = false;
+
+  if (currentToy && !hasFieldErrors) {
+    const currentName = String(currentToy.name ?? "").trim();
+    const currentImage = toApiImageUrl(currentToy.image);
+    isUnchanged = values.name === currentName && normalizedImageUrl === currentImage;
+  }
+
+  return {
+    fieldErrors,
+    hasFieldErrors,
+    isUnchanged,
+    normalizedImageUrl,
+    values,
+  };
+}
+
+function getPreviewErrorMessage(formState, previewState) {
+  if (formState.fieldErrors.get("image") || !formState.normalizedImageUrl) {
+    return "";
+  }
+
+  if (previewState.source !== formState.normalizedImageUrl) {
+    return "";
+  }
+
+  if (previewState.status === "error") {
+    return "Image preview could not be loaded. Please check the URL or use another image.";
+  }
+
+  return "";
+}
+
+function getSubmitDisableReason(formState, previewState) {
+  if (formState.hasFieldErrors) {
+    return "Complete the required fields with valid values.";
+  }
+
+  if (formState.isUnchanged) {
+    return "Update the name or image to enable save.";
+  }
+
+  if (!formState.normalizedImageUrl) {
+    return "Enter a valid image URL or local toy image path.";
+  }
+
+  if (previewState.source !== formState.normalizedImageUrl || previewState.status === "pending") {
+    return "Wait until the image preview finishes loading.";
+  }
+
+  if (previewState.status === "error") {
+    return "Use an image that can be loaded in preview.";
+  }
+
+  if (previewState.status !== "ready") {
+    return "Wait until the image preview is ready.";
+  }
+
+  return "";
+}
+
+function getFormSubmitButton(form) {
+  return form.querySelector(".toy-form-submit");
+}
+
+function loadImagePreview(source) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+
+    image.decoding = "async";
+    image.onload = () => resolve(source);
+    image.onerror = () => reject(new Error("Image preview could not be loaded."));
+    image.src = source;
+  });
+}
+
+function validateToyForm(form, { currentToy = null } = {}) {
+  const formState = inspectToyForm(form, { currentToy });
+  const previewState = getPreviewState(form);
+  const previewErrorMessage = getPreviewErrorMessage(formState, previewState);
+
+  resetFormValidation(form);
+
+  formState.fieldErrors.forEach((message, fieldName) => {
+    if (message) {
+      setFieldError(form, fieldName, message);
+    }
+  });
+
+  if (previewErrorMessage) {
+    setFieldError(form, "image", previewErrorMessage);
+  }
+
+  if (!formState.hasFieldErrors && !previewErrorMessage && formState.isUnchanged) {
+    setFormError(form, "Update the name or image before saving.");
+    return { isValid: false, values: formState.values };
+  }
+
+  if (!formState.hasFieldErrors && !previewErrorMessage) {
+    const disableReason = getSubmitDisableReason(formState, previewState);
+
+    if (disableReason) {
+      setFormError(form, disableReason);
+      return { isValid: false, values: formState.values };
+    }
+  }
+
+  return {
+    isValid: !formState.hasFieldErrors && !previewErrorMessage,
+    values: formState.values,
+  };
+}
+
+function updateFieldValidation(form, fieldName) {
+  const values = readToyFormValues(form);
+  const message = validateToyField(fieldName, values);
+
+  setFieldError(form, fieldName, message);
+
+  return !message;
+}
+
+function focusFirstInvalidField(form) {
+  form.querySelector(".is-invalid")?.focus();
+}
+
+function resetImagePreview(form) {
+  clearPreviewTimer(form);
+  patchPreviewState(form, {
+    source: "",
+    status: "idle",
+    timeoutId: 0,
+    token: getPreviewState(form).token + 1,
+  });
+  setImagePreview(form, {
+    status: "idle",
+    message: "Enter an image URL to verify it before submitting.",
+    placeholderMessage: DEFAULT_PREVIEW_PLACEHOLDER,
+  });
 }
 
 export async function initApp() {
@@ -127,6 +374,158 @@ export async function initApp() {
     renderToyList(elements.collection, visibleToys, { emptyMessage });
   }
 
+  function getCurrentToyForForm(form) {
+    if (form !== elements.editToyForm || !state.editingToyId) {
+      return null;
+    }
+
+    return state.toys.get(String(state.editingToyId)) || null;
+  }
+
+  function syncFormSubmitState(form) {
+    const submitButton = getFormSubmitButton(form);
+
+    if (!submitButton) {
+      return;
+    }
+
+    const formState = inspectToyForm(form, { currentToy: getCurrentToyForForm(form) });
+    const previewState = getPreviewState(form);
+    const disableReason = getSubmitDisableReason(formState, previewState);
+    const isDisabled = Boolean(disableReason);
+
+    submitButton.disabled = isDisabled;
+    submitButton.setAttribute("aria-disabled", String(isDisabled));
+    submitButton.title = disableReason;
+  }
+
+  function queueImagePreview(form, { immediate = false } = {}) {
+    const formState = inspectToyForm(form, { currentToy: getCurrentToyForForm(form) });
+    const previewState = getPreviewState(form);
+
+    clearPreviewTimer(form);
+
+    if (formState.fieldErrors.get("image")) {
+      patchPreviewState(form, {
+        source: "",
+        status: "idle",
+        timeoutId: 0,
+      });
+      setImagePreview(form, {
+        status: "idle",
+        alt: `${formState.values.name || "Toy"} image preview`,
+        message: "Enter a valid image URL or local toy image path to unlock submit.",
+        placeholderMessage: INVALID_PREVIEW_PLACEHOLDER,
+      });
+      syncFormSubmitState(form);
+      return;
+    }
+
+    if (!formState.normalizedImageUrl) {
+      resetImagePreview(form);
+      syncFormSubmitState(form);
+      return;
+    }
+
+    if (
+      previewState.source === formState.normalizedImageUrl &&
+      (previewState.status === "pending" || previewState.status === "ready")
+    ) {
+      syncFormSubmitState(form);
+      return;
+    }
+
+    const nextToken = previewState.token + 1;
+    const schedulePreviewCheck = () => {
+      patchPreviewState(form, {
+        source: formState.normalizedImageUrl,
+        status: "pending",
+        timeoutId: 0,
+        token: nextToken,
+      });
+      setImagePreview(form, {
+        status: "pending",
+        alt: `${formState.values.name || "Toy"} image preview`,
+        message: "Checking whether this image can be loaded...",
+        placeholderMessage: "Checking image preview...",
+      });
+      syncFormSubmitState(form);
+
+      loadImagePreview(formState.normalizedImageUrl)
+        .then(() => {
+          const latestPreviewState = getPreviewState(form);
+
+          if (
+            latestPreviewState.token !== nextToken ||
+            latestPreviewState.source !== formState.normalizedImageUrl
+          ) {
+            return;
+          }
+
+          patchPreviewState(form, {
+            status: "ready",
+            timeoutId: 0,
+          });
+          setFieldError(form, "image", validateToyField("image", readToyFormValues(form)));
+          setImagePreview(form, {
+            status: "ready",
+            src: formState.normalizedImageUrl,
+            alt: `${formState.values.name || "Toy"} image preview`,
+            message: "Image preview is ready. This is what the toy card will use.",
+          });
+          syncFormSubmitState(form);
+        })
+        .catch(() => {
+          const latestPreviewState = getPreviewState(form);
+
+          if (
+            latestPreviewState.token !== nextToken ||
+            latestPreviewState.source !== formState.normalizedImageUrl
+          ) {
+            return;
+          }
+
+          patchPreviewState(form, {
+            status: "error",
+            timeoutId: 0,
+          });
+          setFieldError(
+            form,
+            "image",
+            "Image preview could not be loaded. Please check the URL or use another image."
+          );
+          setImagePreview(form, {
+            status: "error",
+            alt: `${formState.values.name || "Toy"} image preview`,
+            message: "The image could not be loaded, so submit stays locked.",
+            placeholderMessage: ERROR_PREVIEW_PLACEHOLDER,
+          });
+          syncFormSubmitState(form);
+        });
+    };
+
+    if (immediate) {
+      schedulePreviewCheck();
+      return;
+    }
+
+    const timeoutId = window.setTimeout(schedulePreviewCheck, IMAGE_PREVIEW_DEBOUNCE_MS);
+
+    patchPreviewState(form, {
+      source: formState.normalizedImageUrl,
+      status: "pending",
+      timeoutId,
+      token: nextToken,
+    });
+    setImagePreview(form, {
+      status: "pending",
+      alt: `${formState.values.name || "Toy"} image preview`,
+      message: "Checking whether this image can be loaded...",
+      placeholderMessage: "Checking image preview...",
+    });
+    syncFormSubmitState(form);
+  }
+
   function handleScroll() {
     toggleVisibility(elements.toTopButton, window.scrollY > 300);
   }
@@ -155,16 +554,17 @@ export async function initApp() {
   async function handleCreateToy(event) {
     event.preventDefault();
     const form = event.currentTarget;
-    const formData = new FormData(form);
+    const { isValid, values } = validateToyForm(form);
 
-    setFormError(form, "");
+    if (!isValid) {
+      focusFirstInvalidField(form);
+      return;
+    }
+
     setLoaderVisibility(elements.loader, true);
 
     try {
-      const toy = await createToy({
-        name: formData.get("name"),
-        image: formData.get("image"),
-      });
+      const toy = await createToy(values);
 
       if (!toy?.id) {
         throw new Error("The API did not return a new toy record.");
@@ -173,6 +573,7 @@ export async function initApp() {
       prependToyState(state, toy);
       renderVisibleToys();
       form.reset();
+      resetFormValidation(form);
       addToyModal.hide();
       showAppToast({
         title: "Toy created",
@@ -208,16 +609,20 @@ export async function initApp() {
     }
 
     const form = event.currentTarget;
-    const formData = new FormData(form);
+    const { isValid, values } = validateToyForm(form, { currentToy });
 
-    setFormError(form, "");
+    if (!isValid) {
+      focusFirstInvalidField(form);
+      return;
+    }
+
     setToyCardBusy(elements.collection, toyId, true);
     setLoaderVisibility(elements.loader, true);
 
     try {
       const updatedToy = await updateToy(toyId, {
-        name: formData.get("name"),
-        image: formData.get("image"),
+        name: values.name,
+        image: values.image,
         likes: currentToy.likes,
       });
 
@@ -255,6 +660,8 @@ export async function initApp() {
     state.editingToyId = String(toyId);
     setFormError(elements.editToyForm, "");
     setEditTarget(elements.editToyModal, toy);
+    queueImagePreview(elements.editToyForm, { immediate: true });
+    syncFormSubmitState(elements.editToyForm);
     editToyModal.show();
   }
 
@@ -393,23 +800,62 @@ export async function initApp() {
   });
   elements.addToyModal.addEventListener("shown.bs.modal", () => {
     elements.addToyForm.querySelector("[name='name']")?.focus();
+    syncFormSubmitState(elements.addToyForm);
   });
   elements.addToyModal.addEventListener("hidden.bs.modal", () => {
     elements.addToyForm.reset();
-    setFormError(elements.addToyForm, "");
+    resetFormValidation(elements.addToyForm);
+    resetImagePreview(elements.addToyForm);
+    syncFormSubmitState(elements.addToyForm);
   });
   elements.editToyModal.addEventListener("shown.bs.modal", () => {
     elements.editToyForm.querySelector("[name='name']")?.focus();
+    queueImagePreview(elements.editToyForm, { immediate: true });
+    syncFormSubmitState(elements.editToyForm);
   });
   elements.editToyModal.addEventListener("hidden.bs.modal", () => {
     state.editingToyId = null;
     elements.editToyForm.reset();
-    setFormError(elements.editToyForm, "");
+    resetFormValidation(elements.editToyForm);
+    resetImagePreview(elements.editToyForm);
+    syncFormSubmitState(elements.editToyForm);
   });
   elements.deleteModal.addEventListener("hidden.bs.modal", () => {
     state.confirmDeleteToyId = null;
   });
+  elements.addToyForm.addEventListener("input", (event) => {
+    const field = event.target;
+
+    if (!(field instanceof HTMLInputElement) || !["name", "image"].includes(field.name)) {
+      return;
+    }
+
+    setFormError(elements.addToyForm, "");
+    updateFieldValidation(elements.addToyForm, field.name);
+
+    if (field.name === "image") {
+      queueImagePreview(elements.addToyForm);
+    } else {
+      syncFormSubmitState(elements.addToyForm);
+    }
+  });
   elements.addToyForm.addEventListener("submit", handleCreateToy);
+  elements.editToyForm.addEventListener("input", (event) => {
+    const field = event.target;
+
+    if (!(field instanceof HTMLInputElement) || !["name", "image"].includes(field.name)) {
+      return;
+    }
+
+    setFormError(elements.editToyForm, "");
+    updateFieldValidation(elements.editToyForm, field.name);
+
+    if (field.name === "image") {
+      queueImagePreview(elements.editToyForm);
+    } else {
+      syncFormSubmitState(elements.editToyForm);
+    }
+  });
   elements.editToyForm.addEventListener("submit", handleEditToy);
   elements.searchInput.addEventListener("input", (event) => {
     state.searchTerm = event.currentTarget.value;
@@ -421,6 +867,11 @@ export async function initApp() {
   });
   elements.collection.addEventListener("click", handleCollectionClick);
   elements.deleteConfirmButton.addEventListener("click", handleDeleteToy);
+
+  resetImagePreview(elements.addToyForm);
+  resetImagePreview(elements.editToyForm);
+  syncFormSubmitState(elements.addToyForm);
+  syncFormSubmitState(elements.editToyForm);
 
   handleScroll();
   await loadInitialToys();

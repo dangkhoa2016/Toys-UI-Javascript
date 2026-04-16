@@ -239,6 +239,77 @@ export function setEditTarget(modalElement, toy) {
   }
 }
 
+export function setFieldError(form, fieldName, message) {
+  const field = form.querySelector(`[name="${fieldName}"]`);
+  const feedback = form.querySelector(`[data-field-error="${fieldName}"]`);
+  const hasError = Boolean(message);
+
+  if (field) {
+    field.classList.toggle("is-invalid", hasError);
+
+    if (hasError) {
+      field.setAttribute("aria-invalid", "true");
+    } else {
+      field.removeAttribute("aria-invalid");
+    }
+  }
+
+  if (feedback) {
+    feedback.textContent = message || "";
+  }
+}
+
+export function resetFormValidation(form) {
+  form.querySelectorAll("[name]").forEach((field) => {
+    field.classList.remove("is-invalid");
+    field.removeAttribute("aria-invalid");
+  });
+
+  form.querySelectorAll("[data-field-error]").forEach((feedback) => {
+    feedback.textContent = "";
+  });
+
+  setFormError(form, "");
+}
+
+export function setImagePreview(
+  form,
+  {
+    status = "idle",
+    src = "",
+    alt = "Toy image preview",
+    message = "",
+    placeholderMessage = "Preview will appear here after the image URL is checked.",
+  } = {}
+) {
+  const previewFrame = form.querySelector("[data-image-preview]");
+  const previewImage = form.querySelector("[data-image-preview-image]");
+  const previewPlaceholder = form.querySelector("[data-image-preview-placeholder]");
+  const previewStatus = form.querySelector("[data-image-preview-status]");
+
+  if (!previewFrame || !previewImage || !previewPlaceholder || !previewStatus) {
+    return;
+  }
+
+  previewFrame.dataset.previewState = status;
+  previewStatus.textContent = message;
+
+  if (status === "ready" && src) {
+    previewImage.src = src;
+    previewImage.alt = alt;
+    previewImage.classList.remove("d-none");
+    previewPlaceholder.classList.add("d-none");
+    previewPlaceholder.textContent = placeholderMessage;
+    return;
+  }
+
+  previewImage.removeAttribute("src");
+  previewImage.alt = alt;
+  previewImage.classList.add("d-none");
+  previewPlaceholder.classList.remove("d-none");
+  previewPlaceholder.textContent = placeholderMessage;
+}
+
 export function setFormError(form, message) {
   const alert = form.querySelector(".alert");
 

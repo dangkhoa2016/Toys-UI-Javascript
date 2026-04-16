@@ -115,6 +115,60 @@ img {
   box-shadow: 0 0 0 0.25rem rgba(81, 93, 162, 0.15);
 }
 
+.toy-form-card .invalid-feedback {
+  font-size: 0.82rem;
+}
+
+.toy-preview-shell {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.toy-preview-frame {
+  display: grid;
+  place-items: center;
+  min-height: 16rem;
+  padding: 1rem;
+  border: 1px solid rgba(81, 93, 162, 0.16);
+  border-radius: 1rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(244, 246, 255, 0.98)),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.6), transparent 55%);
+  overflow: hidden;
+}
+
+.toy-preview-frame[data-preview-state='pending'] {
+  border-color: rgba(81, 93, 162, 0.28);
+}
+
+.toy-preview-frame[data-preview-state='error'] {
+  border-color: rgba(168, 45, 65, 0.28);
+  background: linear-gradient(180deg, rgba(255, 247, 248, 0.96), rgba(255, 240, 243, 0.98));
+}
+
+.toy-preview-image {
+  display: block;
+  max-height: 15rem;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.toy-preview-placeholder {
+  max-width: 18rem;
+  text-align: center;
+  color: #5e678f;
+  line-height: 1.5;
+}
+
+.toy-preview-status {
+  min-height: 1.5rem;
+}
+
+.toy-form-submit:disabled {
+  cursor: not-allowed;
+}
+
 .toy-form-submit {
   min-height: 3rem;
   white-space: nowrap;

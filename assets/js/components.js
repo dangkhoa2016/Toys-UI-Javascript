@@ -26,8 +26,13 @@ const templates = {
                         value=''
                         placeholder="Enter a toy's name..."
                         class='form-control'
+                        required
+                        minlength='2'
+                        maxlength='120'
                         autocomplete='off'
+                        aria-describedby='toy-name-feedback'
                       />
+                      <div id='toy-name-feedback' class='invalid-feedback' data-field-error='name'></div>
                     </div>
 
                     <div class='col-12 col-md-6'>
@@ -39,13 +44,26 @@ const templates = {
                         value=''
                         placeholder="Enter a toy's image URL..."
                         class='form-control'
+                        required
                         autocomplete='off'
+                        aria-describedby='toy-image-feedback'
                       />
+                      <div id='toy-image-feedback' class='invalid-feedback' data-field-error='image'></div>
+                    </div>
+
+                    <div class='col-12'>
+                      <div class='toy-preview-shell'>
+                        <div class='toy-preview-frame' data-image-preview data-preview-state='idle'>
+                          <img class='toy-preview-image d-none' data-image-preview-image alt='Toy image preview' />
+                          <div class='toy-preview-placeholder' data-image-preview-placeholder>Preview will appear here after the image URL is checked.</div>
+                        </div>
+                        <p class='form-text toy-preview-status mb-0' data-image-preview-status aria-live='polite'>Enter an image URL to verify it before submitting.</p>
+                      </div>
                     </div>
 
                     <div class='col-12 toy-form-actions d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 gap-md-3'>
-                      <button type='submit' name='submit' class='btn btn-danger px-4 toy-form-submit'>Create New Toy</button>
-                      <span class='form-text toy-form-hint my-0'>Use a valid image URL so the toy card renders correctly.</span>
+                      <button type='submit' name='submit' class='btn btn-danger px-4 toy-form-submit' disabled>Create New Toy</button>
+                      <span class='form-text toy-form-hint my-0'>Name must be 2-120 characters. Image accepts an absolute URL or a local toy image path.</span>
                     </div>
 
                     <div class='col-12'>
@@ -91,8 +109,13 @@ const templates = {
                         value=''
                         placeholder="Update the toy's name..."
                         class='form-control'
+                        required
+                        minlength='2'
+                        maxlength='120'
                         autocomplete='off'
+                        aria-describedby='edit-toy-name-feedback'
                       />
+                      <div id='edit-toy-name-feedback' class='invalid-feedback' data-field-error='name'></div>
                     </div>
 
                     <div class='col-12 col-md-6'>
@@ -104,13 +127,26 @@ const templates = {
                         value=''
                         placeholder="Update the toy's image URL..."
                         class='form-control'
+                        required
                         autocomplete='off'
+                        aria-describedby='edit-toy-image-feedback'
                       />
+                      <div id='edit-toy-image-feedback' class='invalid-feedback' data-field-error='image'></div>
+                    </div>
+
+                    <div class='col-12'>
+                      <div class='toy-preview-shell'>
+                        <div class='toy-preview-frame' data-image-preview data-preview-state='idle'>
+                          <img class='toy-preview-image d-none' data-image-preview-image alt='Toy image preview' />
+                          <div class='toy-preview-placeholder' data-image-preview-placeholder>Preview will appear here after the image URL is checked.</div>
+                        </div>
+                        <p class='form-text toy-preview-status mb-0' data-image-preview-status aria-live='polite'>The save button unlocks after the new image is verified.</p>
+                      </div>
                     </div>
 
                     <div class='col-12 toy-form-actions d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 gap-md-3'>
-                      <button type='submit' name='submit' class='btn btn-primary px-4 toy-form-submit'>Save Changes</button>
-                      <span class='form-text toy-form-hint my-0'>Changes are sent to the API immediately after you save.</span>
+                      <button type='submit' name='submit' class='btn btn-primary px-4 toy-form-submit' disabled>Save Changes</button>
+                      <span class='form-text toy-form-hint my-0'>Only valid changes are sent, so you get faster feedback and fewer wasted requests.</span>
                     </div>
 
                     <div class='col-12'>
