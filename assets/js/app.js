@@ -32,6 +32,7 @@ const INVALID_PREVIEW_PLACEHOLDER = "Enter a valid image URL or local toy image 
 const ERROR_PREVIEW_PLACEHOLDER = "This image could not be loaded in preview.";
 
 const previewStateByForm = new WeakMap();
+const formBusyStateByForm = new WeakMap();
 
 function requireElement(selector) {
   const element = document.querySelector(selector);
@@ -82,6 +83,39 @@ function shouldReorderAfterLike(state) {
 
 function getErrorMessage(error, fallbackMessage) {
   return error instanceof Error && error.message ? error.message : fallbackMessage;
+}
+
+function getFormBusyState(form) {
+  return formBusyStateByForm.get(form) || { isBusy: false, label: "" };
+}
+
+function setFormBusyState(form, isBusy, label = "") {
+  formBusyStateByForm.set(form, {
+    isBusy,
+    label,
+  });
+
+  const submitButton = getFormSubmitButton(form);
+
+  if (submitButton) {
+    if (!submitButton.dataset.defaultLabel) {
+      submitButton.dataset.defaultLabel = submitButton.textContent.trim();
+    }
+
+    submitButton.textContent = isBusy ? label || submitButton.dataset.defaultLabel : submitButton.dataset.defaultLabel;
+  }
+
+  form.querySelectorAll("input, button").forEach((field) => {
+    if (!(field instanceof HTMLInputElement || field instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    if (field === submitButton) {
+      return;
+    }
+
+    field.disabled = isBusy;
+  });
 }
 
 function getPreviewState(form) {
@@ -389,9 +423,12 @@ export async function initApp() {
       return;
     }
 
+    const formBusyState = getFormBusyState(form);
     const formState = inspectToyForm(form, { currentToy: getCurrentToyForForm(form) });
     const previewState = getPreviewState(form);
-    const disableReason = getSubmitDisableReason(formState, previewState);
+    const disableReason = formBusyState.isBusy
+      ? formBusyState.label || "Submitting your request..."
+      : getSubmitDisableReason(formState, previewState);
     const isDisabled = Boolean(disableReason);
 
     submitButton.disabled = isDisabled;
@@ -554,6 +591,11 @@ export async function initApp() {
   async function handleCreateToy(event) {
     event.preventDefault();
     const form = event.currentTarget;
+
+    if (getFormBusyState(form).isBusy) {
+      return;
+    }
+
     const { isValid, values } = validateToyForm(form);
 
     if (!isValid) {
@@ -561,6 +603,8 @@ export async function initApp() {
       return;
     }
 
+    setFormBusyState(form, true, "Creating toy...");
+    syncFormSubmitState(form);
     setLoaderVisibility(elements.loader, true);
 
     try {
@@ -590,6 +634,8 @@ export async function initApp() {
         delay: 3600,
       });
     } finally {
+      setFormBusyState(form, false);
+      syncFormSubmitState(form);
       setLoaderVisibility(elements.loader, false);
     }
   }
@@ -609,6 +655,11 @@ export async function initApp() {
     }
 
     const form = event.currentTarget;
+
+    if (getFormBusyState(form).isBusy) {
+      return;
+    }
+
     const { isValid, values } = validateToyForm(form, { currentToy });
 
     if (!isValid) {
@@ -616,6 +667,8 @@ export async function initApp() {
       return;
     }
 
+    setFormBusyState(form, true, "Saving changes...");
+    syncFormSubmitState(form);
     setToyCardBusy(elements.collection, toyId, true);
     setLoaderVisibility(elements.loader, true);
 
@@ -645,6 +698,8 @@ export async function initApp() {
         delay: 3600,
       });
     } finally {
+      setFormBusyState(form, false);
+      syncFormSubmitState(form);
       setToyCardBusy(elements.collection, toyId, false);
       setLoaderVisibility(elements.loader, false);
     }
@@ -804,6 +859,7 @@ export async function initApp() {
   });
   elements.addToyModal.addEventListener("hidden.bs.modal", () => {
     elements.addToyForm.reset();
+    setFormBusyState(elements.addToyForm, false);
     resetFormValidation(elements.addToyForm);
     resetImagePreview(elements.addToyForm);
     syncFormSubmitState(elements.addToyForm);
@@ -816,6 +872,7 @@ export async function initApp() {
   elements.editToyModal.addEventListener("hidden.bs.modal", () => {
     state.editingToyId = null;
     elements.editToyForm.reset();
+    setFormBusyState(elements.editToyForm, false);
     resetFormValidation(elements.editToyForm);
     resetImagePreview(elements.editToyForm);
     syncFormSubmitState(elements.editToyForm);
@@ -870,6 +927,8 @@ export async function initApp() {
 
   resetImagePreview(elements.addToyForm);
   resetImagePreview(elements.editToyForm);
+  setFormBusyState(elements.addToyForm, false);
+  setFormBusyState(elements.editToyForm, false);
   syncFormSubmitState(elements.addToyForm);
   syncFormSubmitState(elements.editToyForm);
 

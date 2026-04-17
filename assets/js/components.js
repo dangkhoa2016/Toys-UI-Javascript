@@ -54,6 +54,10 @@ const templates = {
                     <div class='col-12'>
                       <div class='toy-preview-shell'>
                         <div class='toy-preview-frame' data-image-preview data-preview-state='idle'>
+                          <div class='toy-preview-loader d-none' data-image-preview-loader aria-hidden='true'>
+                            <span class='spinner-border spinner-border-sm toy-preview-loader-spinner' aria-hidden='true'></span>
+                            <span class='toy-preview-loader-label'>Checking image preview...</span>
+                          </div>
                           <img class='toy-preview-image d-none' data-image-preview-image alt='Toy image preview' />
                           <div class='toy-preview-placeholder' data-image-preview-placeholder>Preview will appear here after the image URL is checked.</div>
                         </div>
@@ -137,6 +141,10 @@ const templates = {
                     <div class='col-12'>
                       <div class='toy-preview-shell'>
                         <div class='toy-preview-frame' data-image-preview data-preview-state='idle'>
+                          <div class='toy-preview-loader d-none' data-image-preview-loader aria-hidden='true'>
+                            <span class='spinner-border spinner-border-sm toy-preview-loader-spinner' aria-hidden='true'></span>
+                            <span class='toy-preview-loader-label'>Checking image preview...</span>
+                          </div>
                           <img class='toy-preview-image d-none' data-image-preview-image alt='Toy image preview' />
                           <div class='toy-preview-placeholder' data-image-preview-placeholder>Preview will appear here after the image URL is checked.</div>
                         </div>

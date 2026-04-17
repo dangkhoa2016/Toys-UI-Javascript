@@ -284,15 +284,18 @@ export function setImagePreview(
 ) {
   const previewFrame = form.querySelector("[data-image-preview]");
   const previewImage = form.querySelector("[data-image-preview-image]");
+  const previewLoader = form.querySelector("[data-image-preview-loader]");
   const previewPlaceholder = form.querySelector("[data-image-preview-placeholder]");
   const previewStatus = form.querySelector("[data-image-preview-status]");
 
-  if (!previewFrame || !previewImage || !previewPlaceholder || !previewStatus) {
+  if (!previewFrame || !previewImage || !previewLoader || !previewPlaceholder || !previewStatus) {
     return;
   }
 
   previewFrame.dataset.previewState = status;
   previewStatus.textContent = message;
+  previewLoader.classList.toggle("d-none", status !== "pending");
+  previewPlaceholder.classList.toggle("d-none", status === "pending");
 
   if (status === "ready" && src) {
     previewImage.src = src;
@@ -306,7 +309,9 @@ export function setImagePreview(
   previewImage.removeAttribute("src");
   previewImage.alt = alt;
   previewImage.classList.add("d-none");
-  previewPlaceholder.classList.remove("d-none");
+  if (status !== "pending") {
+    previewPlaceholder.classList.remove("d-none");
+  }
   previewPlaceholder.textContent = placeholderMessage;
 }
 
