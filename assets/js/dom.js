@@ -637,3 +637,15 @@ export function createToast({ title, message, variant = "primary" }) {
 export function showCollectionMessage(container, message) {
   container.replaceChildren(createCollectionStatus(message, "error"));
 }
+
+export function showSeedingMessage(container) {
+  const wrapper = createElement("div", "col-12 toy-status-shell");
+  const state = createElement("div", "alert alert-info toy-status-alert");
+  const message = createElement("p", "mb-0");
+
+  message.innerHTML = "<strong>Server has no data yet.</strong> Initializing sample data, please wait...";
+  state.setAttribute("role", "status");
+  state.append(message);
+  wrapper.append(state);
+  container.replaceChildren(wrapper);
+}

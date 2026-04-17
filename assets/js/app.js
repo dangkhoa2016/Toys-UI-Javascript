@@ -1,4 +1,4 @@
-import { createToy, deleteToy, fetchOrSeedToys, likeToy, updateToy } from "./services/toyService.js";
+import { createToy, deleteToy, fetchToys, likeToy, seedDemoToys, updateToy } from "./services/toyService.js";
 import {
   addToastState,
   clearHighlightedToyState,
@@ -53,6 +53,7 @@ import {
   resetFormValidation,
   setToyCardBusy,
   showCollectionMessage,
+  showSeedingMessage,
   toggleVisibility,
   updateToyLikes,
 } from "./dom.js";
@@ -523,7 +524,14 @@ export async function initApp() {
     setLoaderVisibility(elements.loader, true);
 
     try {
-      const toys = await fetchOrSeedToys();
+      let toys = await fetchToys();
+
+      if (toys.length === 0) {
+        showSeedingMessage(elements.collection);
+        await seedDemoToys();
+        toys = await fetchToys();
+      }
+
       syncToyState(state, toys);
       renderVisibleToys();
     } catch (error) {

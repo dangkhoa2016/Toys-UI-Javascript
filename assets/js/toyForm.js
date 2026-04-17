@@ -72,7 +72,7 @@ export function createToyFormLifecycleState({
 
 function isSupportedImageUrl(imageUrl) {
   try {
-    const parsedUrl = new URL(imageUrl);
+    const parsedUrl = new URL(imageUrl, window.location.origin);
     return ALLOWED_IMAGE_PROTOCOLS.has(parsedUrl.protocol);
   } catch {
     return false;
