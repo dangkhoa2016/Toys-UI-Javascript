@@ -10,6 +10,8 @@ export const DEMO_DATA_PATH = "/assets/db.json";
 export const TOY_IMAGE_DIRECTORY = "/assets/images/toys/";
 
 const REMOTE_IMAGE_PATTERN = /^(?:https?:)?\/\//i;
+const TOY_IMAGE_PREFIX_PATTERN =
+  /^(?:\/?assets\/images\/toys\/|\/?images\/toys\/|\/?toys\/|\/?imgs\/)+/i;
 
 export function normalizeToyImageUrl(image) {
   if (typeof image !== "string") {
@@ -30,16 +32,15 @@ export function normalizeToyImageUrl(image) {
     return trimmedImage;
   }
 
-  if (trimmedImage.startsWith("/imgs/") || trimmedImage.startsWith("/toys/")) {
-    const fileName = trimmedImage.split("/").filter(Boolean).at(-1);
-    return fileName ? `${TOY_IMAGE_DIRECTORY}${fileName}` : trimmedImage;
+  const normalizedRelativePath = trimmedImage
+    .replace(/^\/+/, "")
+    .replace(TOY_IMAGE_PREFIX_PATTERN, "");
+
+  if (!normalizedRelativePath) {
+    return TOY_IMAGE_DIRECTORY;
   }
 
-  if (trimmedImage.startsWith("/")) {
-    return trimmedImage;
-  }
-
-  return `${TOY_IMAGE_DIRECTORY}${trimmedImage}`;
+  return `${TOY_IMAGE_DIRECTORY}${normalizedRelativePath}`;
 }
 
 export function toApiImageUrl(image) {

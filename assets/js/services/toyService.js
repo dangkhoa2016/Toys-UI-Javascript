@@ -3,7 +3,7 @@ import {
   TOY_API_URL,
   normalizeToy,
   toApiImageUrl,
-} from "./config.js";
+} from "../config.js";
 
 class ApiError extends Error {
   constructor(message, { statusCode, details, cause } = {}) {

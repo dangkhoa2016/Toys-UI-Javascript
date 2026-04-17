@@ -1,4 +1,4 @@
-import { createToy, deleteToy, fetchOrSeedToys, likeToy, updateToy } from "./api.js";
+import { createToy, deleteToy, fetchOrSeedToys, likeToy, updateToy } from "./services/toyService.js";
 import {
   animateToyRemoval,
   createToast,
