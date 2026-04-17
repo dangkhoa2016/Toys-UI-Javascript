@@ -215,7 +215,6 @@ img {
 }
 
 #toy-collection .card {
-  height: 100%;
   border: 0;
   box-shadow: 0 12px 32px rgba(81, 93, 162, 0.12);
   transition: box-shadow 200ms ease, transform 200ms ease;
@@ -229,6 +228,21 @@ img {
 .toy-card-shell {
   transform-origin: center top;
   transition: opacity 220ms ease, transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.toy-card-ghost {
+  position: fixed;
+  margin: 0;
+  pointer-events: none;
+  z-index: 1085;
+  opacity: 1;
+  transform-origin: center top;
+  transition: opacity 280ms ease, transform 280ms ease;
+}
+
+.toy-card-ghost.is-removing {
+  opacity: 0;
+  transform: translateY(14px) scale(0.98);
 }
 
 .toy-card-shell.is-entering {
@@ -251,6 +265,14 @@ img {
 
 .toy-card-updated {
   animation: toy-card-pulse 520ms ease;
+}
+
+.likes-count {
+  display: inline-block;
+}
+
+.likes-count-updated {
+  animation: toy-likes-pop 360ms ease;
 }
 
 .toy-card-actions .btn {
@@ -524,6 +546,20 @@ img {
 
   100% {
     box-shadow: 0 12px 32px rgba(81, 93, 162, 0.12);
+  }
+}
+
+@keyframes toy-likes-pop {
+  0% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.18);
+  }
+
+  100% {
+    transform: scale(1);
   }
 }
 

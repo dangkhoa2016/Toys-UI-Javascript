@@ -1,3 +1,5 @@
+const activeAnimations = new WeakMap();
+
 function createElement(tagName, className, textContent) {
   const element = document.createElement(tagName);
 
@@ -12,10 +14,224 @@ function createElement(tagName, className, textContent) {
   return element;
 }
 
+function playAnimation(element, keyframes, options) {
+  if (typeof element.animate !== "function") {
+    return null;
+  }
+
+  const existingAnimation = activeAnimations.get(element);
+
+  if (existingAnimation) {
+    try {
+      existingAnimation.cancel();
+    } catch {
+      // Ignore finished animations.
+    }
+  }
+
+  const animation = element.animate(keyframes, options);
+
+  activeAnimations.set(element, animation);
+
+  const clearAnimation = () => {
+    if (activeAnimations.get(element) === animation) {
+      activeAnimations.delete(element);
+    }
+  };
+
+  animation.addEventListener("finish", clearAnimation, { once: true });
+  animation.addEventListener("cancel", clearAnimation, { once: true });
+
+  return animation;
+}
+
+function getCards(container) {
+  return Array.from(container.querySelectorAll("[data-id]")).filter(
+    (card) => !card.classList.contains("toy-card-ghost")
+  );
+}
+
+function getCardsById(container) {
+  return new Map(getCards(container).map((card) => [card.dataset.id, card]));
+}
+
 function animateCardEntry(card) {
   requestAnimationFrame(() => {
     card.classList.remove("is-entering");
+
+    playAnimation(
+      card,
+      [
+        { opacity: 0, transform: "translateY(18px) scale(0.98)" },
+        { opacity: 1, transform: "translateY(0) scale(1)" },
+      ],
+      {
+        duration: 280,
+        easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+      }
+    );
   });
+}
+
+function captureCardRects(container) {
+  return new Map(getCards(container).map((card) => [card.dataset.id, card.getBoundingClientRect()]));
+}
+
+function cleanupRemovalGhosts() {
+  document.querySelectorAll(".toy-card-ghost").forEach((ghost) => {
+    ghost.remove();
+  });
+}
+
+function createRemovalGhost(card) {
+  const rect = card.getBoundingClientRect();
+
+  if (!rect.width || !rect.height) {
+    return null;
+  }
+
+  const ghost = card.cloneNode(true);
+
+  ghost.classList.remove("is-entering", "is-reordering", "is-removing");
+  ghost.classList.add("toy-card-ghost");
+  ghost.style.width = `${rect.width}px`;
+  ghost.style.height = `${rect.height}px`;
+  ghost.style.top = `${rect.top}px`;
+  ghost.style.left = `${rect.left}px`;
+  document.body.append(ghost);
+
+  return ghost;
+}
+
+function animateRemovalGhosts(ghosts) {
+  ghosts.forEach((ghost) => {
+    const finish = () => {
+      ghost.remove();
+    };
+
+    const animation = playAnimation(
+      ghost,
+      [
+        { opacity: 1, transform: "translateY(0) scale(1)" },
+        { opacity: 0, transform: "translateY(16px) scale(0.97)" },
+      ],
+      {
+        duration: 300,
+        easing: "ease",
+        fill: "forwards",
+      }
+    );
+
+    if (animation) {
+      animation.addEventListener("finish", finish, { once: true });
+      window.setTimeout(finish, 340);
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      ghost.classList.add("is-removing");
+    });
+
+    ghost.addEventListener(
+      "transitionend",
+      (event) => {
+        if (event.propertyName !== "transform" && event.propertyName !== "opacity") {
+          return;
+        }
+
+        finish();
+      },
+      { once: true }
+    );
+
+    window.setTimeout(finish, 320);
+  });
+}
+
+function animateCardMove(card, previousRect) {
+  if (!previousRect) {
+    return;
+  }
+
+  const nextRect = card.getBoundingClientRect();
+  const deltaX = previousRect.left - nextRect.left;
+  const deltaY = previousRect.top - nextRect.top;
+
+  if (!deltaX && !deltaY) {
+    return;
+  }
+
+  const animation = playAnimation(
+    card,
+    [
+      { transform: `translate(${deltaX}px, ${deltaY}px)` },
+      { transform: "translate(0, 0)" },
+    ],
+    {
+      duration: 320,
+      easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+    }
+  );
+
+  if (animation) {
+    return;
+  }
+
+  card.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+  card.getBoundingClientRect();
+  card.classList.add("is-reordering");
+
+  requestAnimationFrame(() => {
+    card.style.transform = "";
+  });
+
+  card.addEventListener(
+    "transitionend",
+    (event) => {
+      if (event.propertyName !== "transform") {
+        return;
+      }
+
+      card.classList.remove("is-reordering");
+    },
+    { once: true }
+  );
+}
+
+function animateCardMoves(container, previousRects) {
+  getCards(container).forEach((card) => {
+    animateCardMove(card, previousRects.get(card.dataset.id));
+  });
+}
+
+function animateLikesCountChange(likesCount) {
+  const animation = playAnimation(
+    likesCount,
+    [
+      { transform: "scale(1)", opacity: 1 },
+      { transform: "scale(1.2)", opacity: 1 },
+      { transform: "scale(1)", opacity: 1 },
+    ],
+    {
+      duration: 360,
+      easing: "ease",
+    }
+  );
+
+  if (animation) {
+    return;
+  }
+
+  likesCount.classList.remove("likes-count-updated");
+  likesCount.getBoundingClientRect();
+  likesCount.classList.add("likes-count-updated");
+  likesCount.addEventListener(
+    "animationend",
+    () => {
+      likesCount.classList.remove("likes-count-updated");
+    },
+    { once: true }
+  );
 }
 
 function createToyCard(toy) {
@@ -111,25 +327,39 @@ function createCollectionStatus(message, variant = "info") {
 
 export function renderToyList(container, toys, options = {}) {
   const { emptyMessage = "No toys available yet." } = options;
+  const previousRects = captureCardRects(container);
+  cleanupRemovalGhosts();
 
   if (!toys.length) {
+    const ghosts = Array.from(container.querySelectorAll("[data-id]"))
+      .map((card) => createRemovalGhost(card))
+      .filter(Boolean);
+
     container.replaceChildren(createCollectionStatus(emptyMessage));
+    animateRemovalGhosts(ghosts);
     return;
   }
 
   container.querySelector(".toy-status-shell")?.remove();
 
   const nextToyIds = new Set(toys.map((toy) => String(toy.id)));
-  const existingCards = new Map(
-    Array.from(container.querySelectorAll("[data-id]")).map((card) => [card.dataset.id, card])
-  );
+  const existingCards = getCardsById(container);
+  const ghosts = [];
 
-  existingCards.forEach((card, toyId) => {
+  Array.from(existingCards.entries()).forEach(([toyId, card]) => {
     if (!nextToyIds.has(toyId)) {
+      const ghost = createRemovalGhost(card);
+
+      if (ghost) {
+        ghosts.push(ghost);
+      }
+
       card.remove();
       existingCards.delete(toyId);
     }
   });
+
+  const nextCards = [];
 
   toys.forEach((toy) => {
     const toyId = String(toy.id);
@@ -137,14 +367,25 @@ export function renderToyList(container, toys, options = {}) {
 
     if (existingCard) {
       syncToyCard(existingCard, toy);
-      container.append(existingCard);
+      nextCards.push(existingCard);
       return;
     }
 
     const nextCard = createToyCard(toy);
 
-    container.append(nextCard);
-    animateCardEntry(nextCard);
+    nextCards.push(nextCard);
+  });
+
+  nextCards.forEach((card) => {
+    container.append(card);
+  });
+
+  animateRemovalGhosts(ghosts);
+  animateCardMoves(container, previousRects);
+  nextCards.forEach((card) => {
+    if (card.classList.contains("is-entering")) {
+      animateCardEntry(card);
+    }
   });
 }
 
@@ -153,13 +394,12 @@ export function updateToyLikes(container, toyId, likes) {
 
   if (likesCount) {
     likesCount.textContent = String(likes);
+    animateLikesCountChange(likesCount);
   }
 }
 
 export function reorderToyCards(container, toys) {
-  const cardsById = new Map(
-    Array.from(container.querySelectorAll("[data-id]")).map((card) => [card.dataset.id, card])
-  );
+  const cardsById = getCardsById(container);
 
   for (const toy of toys) {
     if (!cardsById.has(String(toy.id))) {
@@ -167,9 +407,7 @@ export function reorderToyCards(container, toys) {
     }
   }
 
-  const previousRects = new Map(
-    Array.from(cardsById.entries()).map(([toyId, card]) => [toyId, card.getBoundingClientRect()])
-  );
+  const previousRects = new Map(Array.from(cardsById.entries()).map(([toyId, card]) => [toyId, card.getBoundingClientRect()]));
 
   toys.forEach((toy) => {
     const card = cardsById.get(String(toy.id));
@@ -179,36 +417,7 @@ export function reorderToyCards(container, toys) {
     }
   });
 
-  cardsById.forEach((card, toyId) => {
-    const previousRect = previousRects.get(toyId);
-    const nextRect = card.getBoundingClientRect();
-    const deltaX = previousRect.left - nextRect.left;
-    const deltaY = previousRect.top - nextRect.top;
-
-    if (!deltaX && !deltaY) {
-      return;
-    }
-
-    card.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-    card.getBoundingClientRect();
-    card.classList.add("is-reordering");
-
-    requestAnimationFrame(() => {
-      card.style.transform = "";
-    });
-
-    card.addEventListener(
-      "transitionend",
-      (event) => {
-        if (event.propertyName !== "transform") {
-          return;
-        }
-
-        card.classList.remove("is-reordering");
-      },
-      { once: true }
-    );
-  });
+  animateCardMoves(container, previousRects);
 
   return true;
 }
@@ -384,21 +593,21 @@ export function animateToyRemoval(container, toyId) {
   }
 
   return new Promise((resolve) => {
-    let completed = false;
+    const previousRects = captureCardRects(container);
+    const ghost = createRemovalGhost(toyCard);
 
-    const finish = () => {
-      if (completed) {
-        return;
-      }
+    toyCard.remove();
+    animateCardMoves(container, previousRects);
 
-      completed = true;
-      toyCard.remove();
+    if (!ghost) {
       resolve(true);
-    };
+      return;
+    }
 
-    toyCard.classList.add("is-removing");
-    toyCard.addEventListener("animationend", finish, { once: true });
-    window.setTimeout(finish, 260);
+    animateRemovalGhosts([ghost]);
+    window.setTimeout(() => {
+      resolve(true);
+    }, 320);
   });
 }
 
