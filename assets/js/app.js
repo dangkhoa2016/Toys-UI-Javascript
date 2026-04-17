@@ -1,5 +1,44 @@
 import { createToy, deleteToy, fetchOrSeedToys, likeToy, updateToy } from "./services/toyService.js";
 import {
+  addToastState,
+  clearHighlightedToyState,
+  createToyStoreState,
+  flashToyState,
+  getToastMessage,
+  getVisibleToys,
+  prependToyState,
+  removeToastState,
+  removeToyState,
+  setSearchTerm,
+  setSortOrder,
+  syncToyState,
+  updateToyState,
+} from "./toyStore.helpers.js";
+import {
+  CHECKING_PREVIEW_MESSAGE,
+  CHECKING_PREVIEW_PLACEHOLDER,
+  CREATE_PREVIEW_MESSAGE,
+  DEFAULT_PREVIEW_PLACEHOLDER,
+  ERROR_PREVIEW_PLACEHOLDER,
+  getImageError,
+  getNameError,
+  getPreviewLoadError,
+  getSubmitDisableReason,
+  IMAGE_PREVIEW_DEBOUNCE_MS,
+  INVALID_PREVIEW_PLACEHOLDER,
+  loadImagePreview,
+  LOCKED_PREVIEW_MESSAGE,
+  READY_PREVIEW_MESSAGE,
+  TOY_IMAGE_VALIDATION_MESSAGES,
+  UPDATE_PREVIEW_MESSAGE,
+} from "./toyForm.js";
+import {
+  armModalBackdropObserver,
+  focusFormField,
+  resetManagedForm,
+  stopModalBackdropObserver,
+} from "./modalForm.js";
+import {
   animateToyRemoval,
   createToast,
   markToyCardUpdated,
@@ -23,16 +62,9 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const TOY_NAME_MIN_LENGTH = 2;
-const TOY_NAME_MAX_LENGTH = 120;
-const ALLOWED_IMAGE_PROTOCOLS = new Set(["http:", "https:"]);
-const IMAGE_PREVIEW_DEBOUNCE_MS = 300;
-const DEFAULT_PREVIEW_PLACEHOLDER = "Preview will appear here after the image URL is checked.";
-const INVALID_PREVIEW_PLACEHOLDER = "Enter a valid image URL or local toy image path to preview it.";
-const ERROR_PREVIEW_PLACEHOLDER = "This image could not be loaded in preview.";
-
 const previewStateByForm = new WeakMap();
 const formBusyStateByForm = new WeakMap();
+let highlightedToyTimer = 0;
 
 function requireElement(selector) {
   const element = document.querySelector(selector);
@@ -44,45 +76,12 @@ function requireElement(selector) {
   return element;
 }
 
-function syncToyState(state, toys) {
-  state.toys = new Map(toys.map((toy) => [String(toy.id), toy]));
-}
-
-function prependToyState(state, toy) {
-  state.toys = new Map([[String(toy.id), toy], ...state.toys.entries()]);
-}
-
-function getVisibleToys(state) {
-  const normalizedSearchTerm = state.searchTerm.trim().toLowerCase();
-  const toys = Array.from(state.toys.values()).filter((toy) => {
-    if (!normalizedSearchTerm) {
-      return true;
-    }
-
-    return toy.name.toLowerCase().includes(normalizedSearchTerm);
-  });
-
-  if (state.sortOrder === "likes-desc") {
-    return toys.sort((left, right) => right.likes - left.likes || left.name.localeCompare(right.name));
-  }
-
-  if (state.sortOrder === "likes-asc") {
-    return toys.sort((left, right) => left.likes - right.likes || left.name.localeCompare(right.name));
-  }
-
-  return toys;
-}
-
 function shouldRerenderAfterLike(state) {
   return state.sortOrder !== "default";
 }
 
 function shouldReorderAfterLike(state) {
   return state.sortOrder === "likes-desc" || state.sortOrder === "likes-asc";
-}
-
-function getErrorMessage(error, fallbackMessage) {
-  return error instanceof Error && error.message ? error.message : fallbackMessage;
 }
 
 function getFormBusyState(form) {
@@ -161,42 +160,18 @@ function readToyFormValues(form) {
   };
 }
 
-function isSupportedImageUrl(imageUrl) {
-  try {
-    const parsedUrl = new URL(imageUrl);
-    return ALLOWED_IMAGE_PROTOCOLS.has(parsedUrl.protocol);
-  } catch {
-    return false;
-  }
-}
-
 function validateToyField(fieldName, values) {
   if (fieldName === "name") {
-    if (!values.name) {
-      return "Toy name is required.";
-    }
-
-    if (values.name.length < TOY_NAME_MIN_LENGTH) {
-      return `Toy name must have at least ${TOY_NAME_MIN_LENGTH} characters.`;
-    }
-
-    if (values.name.length > TOY_NAME_MAX_LENGTH) {
-      return `Toy name must be ${TOY_NAME_MAX_LENGTH} characters or fewer.`;
-    }
-
-    return "";
+    return getNameError(values.name);
   }
 
   if (fieldName === "image") {
-    if (!values.image) {
-      return "Image URL is required.";
-    }
-
     const normalizedImageUrl = toApiImageUrl(values.image);
 
-    if (!normalizedImageUrl || !isSupportedImageUrl(normalizedImageUrl)) {
-      return "Enter an absolute URL or a local toy image path.";
-    }
+    return getImageError({
+      value: values.image,
+      normalizedImageUrl,
+    });
   }
 
   return "";
@@ -232,58 +207,14 @@ function getPreviewErrorMessage(formState, previewState) {
     return "";
   }
 
-  if (previewState.source !== formState.normalizedImageUrl) {
-    return "";
-  }
-
-  if (previewState.status === "error") {
-    return "Image preview could not be loaded. Please check the URL or use another image.";
-  }
-
-  return "";
-}
-
-function getSubmitDisableReason(formState, previewState) {
-  if (formState.hasFieldErrors) {
-    return "Complete the required fields with valid values.";
-  }
-
-  if (formState.isUnchanged) {
-    return "Update the name or image to enable save.";
-  }
-
-  if (!formState.normalizedImageUrl) {
-    return "Enter a valid image URL or local toy image path.";
-  }
-
-  if (previewState.source !== formState.normalizedImageUrl || previewState.status === "pending") {
-    return "Wait until the image preview finishes loading.";
-  }
-
-  if (previewState.status === "error") {
-    return "Use an image that can be loaded in preview.";
-  }
-
-  if (previewState.status !== "ready") {
-    return "Wait until the image preview is ready.";
-  }
-
-  return "";
+  return getPreviewLoadError({
+    normalizedImageUrl: formState.normalizedImageUrl,
+    preview: previewState,
+  });
 }
 
 function getFormSubmitButton(form) {
   return form.querySelector(".toy-form-submit");
-}
-
-function loadImagePreview(source) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-
-    image.decoding = "async";
-    image.onload = () => resolve(source);
-    image.onerror = () => reject(new Error("Image preview could not be loaded."));
-    image.src = source;
-  });
 }
 
 function validateToyForm(form, { currentToy = null } = {}) {
@@ -309,7 +240,13 @@ function validateToyForm(form, { currentToy = null } = {}) {
   }
 
   if (!formState.hasFieldErrors && !previewErrorMessage) {
-    const disableReason = getSubmitDisableReason(formState, previewState);
+    const disableReason = getSubmitDisableReason({
+      nameError: formState.fieldErrors.get("name"),
+      imageError: formState.fieldErrors.get("image"),
+      unchangedSubmitMessage: formState.isUnchanged ? "Update the name or image to enable save." : "",
+      normalizedImageUrl: formState.normalizedImageUrl,
+      preview: previewState,
+    });
 
     if (disableReason) {
       setFormError(form, disableReason);
@@ -346,7 +283,7 @@ function resetImagePreview(form) {
   });
   setImagePreview(form, {
     status: "idle",
-    message: "Enter an image URL to verify it before submitting.",
+    message: CREATE_PREVIEW_MESSAGE,
     placeholderMessage: DEFAULT_PREVIEW_PLACEHOLDER,
   });
 }
@@ -368,29 +305,25 @@ export async function initApp() {
     toastRegion: requireElement("#toast-region"),
   };
 
-  const state = {
-    confirmDeleteToyId: null,
-    editingToyId: null,
-    searchTerm: "",
-    sortOrder: "default",
-    toys: new Map(),
-  };
+  const state = createToyStoreState();
 
   const addToyModal = new bootstrap.Modal(elements.addToyModal);
   const editToyModal = new bootstrap.Modal(elements.editToyModal);
   const modalConfirm = new bootstrap.Modal(elements.deleteModal);
 
   function showAppToast({ title, message, variant = "primary", delay = 5000 }) {
-    const toastElement = createToast({ title, message, variant });
+    const toastPayload = addToastState(state, { title, message, variant, delay });
+    const toastElement = createToast(toastPayload);
     const toast = new bootstrap.Toast(toastElement, {
       autohide: true,
-      delay,
+      delay: toastPayload.delay,
     });
 
     elements.toastRegion.append(toastElement);
     toastElement.addEventListener(
       "hidden.bs.toast",
       () => {
+        removeToastState(state, toastPayload.id);
         toastElement.remove();
       },
       { once: true }
@@ -406,6 +339,19 @@ export async function initApp() {
       : "No toys available yet.";
 
     renderToyList(elements.collection, visibleToys, { emptyMessage });
+  }
+
+  function flashToyCard(toyId) {
+    if (highlightedToyTimer) {
+      window.clearTimeout(highlightedToyTimer);
+    }
+
+    flashToyState(state, toyId);
+    markToyCardUpdated(elements.collection, toyId);
+    highlightedToyTimer = window.setTimeout(() => {
+      clearHighlightedToyState(state);
+      highlightedToyTimer = 0;
+    }, 700);
   }
 
   function getCurrentToyForForm(form) {
@@ -428,7 +374,13 @@ export async function initApp() {
     const previewState = getPreviewState(form);
     const disableReason = formBusyState.isBusy
       ? formBusyState.label || "Submitting your request..."
-      : getSubmitDisableReason(formState, previewState);
+      : getSubmitDisableReason({
+          nameError: formState.fieldErrors.get("name"),
+          imageError: formState.fieldErrors.get("image"),
+          unchangedSubmitMessage: formState.isUnchanged ? "Update the name or image to enable save." : "",
+          normalizedImageUrl: formState.normalizedImageUrl,
+          preview: previewState,
+        });
     const isDisabled = Boolean(disableReason);
 
     submitButton.disabled = isDisabled;
@@ -483,8 +435,8 @@ export async function initApp() {
       setImagePreview(form, {
         status: "pending",
         alt: `${formState.values.name || "Toy"} image preview`,
-        message: "Checking whether this image can be loaded...",
-        placeholderMessage: "Checking image preview...",
+        message: CHECKING_PREVIEW_MESSAGE,
+        placeholderMessage: CHECKING_PREVIEW_PLACEHOLDER,
       });
       syncFormSubmitState(form);
 
@@ -508,7 +460,7 @@ export async function initApp() {
             status: "ready",
             src: formState.normalizedImageUrl,
             alt: `${formState.values.name || "Toy"} image preview`,
-            message: "Image preview is ready. This is what the toy card will use.",
+            message: READY_PREVIEW_MESSAGE,
           });
           syncFormSubmitState(form);
         })
@@ -529,12 +481,12 @@ export async function initApp() {
           setFieldError(
             form,
             "image",
-            "Image preview could not be loaded. Please check the URL or use another image."
+            TOY_IMAGE_VALIDATION_MESSAGES.previewLoadError
           );
           setImagePreview(form, {
             status: "error",
             alt: `${formState.values.name || "Toy"} image preview`,
-            message: "The image could not be loaded, so submit stays locked.",
+            message: LOCKED_PREVIEW_MESSAGE,
             placeholderMessage: ERROR_PREVIEW_PLACEHOLDER,
           });
           syncFormSubmitState(form);
@@ -557,8 +509,8 @@ export async function initApp() {
     setImagePreview(form, {
       status: "pending",
       alt: `${formState.values.name || "Toy"} image preview`,
-      message: "Checking whether this image can be loaded...",
-      placeholderMessage: "Checking image preview...",
+      message: CHECKING_PREVIEW_MESSAGE,
+      placeholderMessage: CHECKING_PREVIEW_PLACEHOLDER,
     });
     syncFormSubmitState(form);
   }
@@ -588,7 +540,7 @@ export async function initApp() {
     }
   }
 
-  async function handleCreateToy(event) {
+  async function submitCreateToy(event) {
     event.preventDefault();
     const form = event.currentTarget;
 
@@ -626,10 +578,10 @@ export async function initApp() {
       });
     } catch (error) {
       console.error("Failed to create toy", error);
-      setFormError(form, getErrorMessage(error, "Unable to create toy. Check the values and try again."));
+      setFormError(form, getToastMessage(error, "Unable to create toy. Check the values and try again."));
       showAppToast({
         title: "Create failed",
-        message: getErrorMessage(error, "The toy could not be created."),
+        message: getToastMessage(error, "The toy could not be created."),
         variant: "danger",
         delay: 3600,
       });
@@ -640,7 +592,7 @@ export async function initApp() {
     }
   }
 
-  async function handleEditToy(event) {
+  async function submitUpdateToy(event) {
     event.preventDefault();
 
     if (!state.editingToyId) {
@@ -679,9 +631,9 @@ export async function initApp() {
         likes: currentToy.likes,
       });
 
-      state.toys.set(toyId, updatedToy);
+      updateToyState(state, updatedToy);
       renderVisibleToys();
-      markToyCardUpdated(elements.collection, toyId);
+      flashToyCard(toyId);
       editToyModal.hide();
       showAppToast({
         title: "Toy updated",
@@ -690,10 +642,10 @@ export async function initApp() {
       });
     } catch (error) {
       console.error(`Failed to update toy ${toyId}`, error);
-      setFormError(form, getErrorMessage(error, "Unable to update toy. Check the values and try again."));
+      setFormError(form, getToastMessage(error, "Unable to update toy. Check the values and try again."));
       showAppToast({
         title: "Update failed",
-        message: getErrorMessage(error, "The toy could not be updated."),
+        message: getToastMessage(error, "The toy could not be updated."),
         variant: "danger",
         delay: 3600,
       });
@@ -705,7 +657,7 @@ export async function initApp() {
     }
   }
 
-  function beginEditToy(toyId) {
+  function openEditToy(toyId) {
     const toy = state.toys.get(String(toyId));
 
     if (!toy) {
@@ -720,7 +672,7 @@ export async function initApp() {
     editToyModal.show();
   }
 
-  async function handleLikeToy(toyId) {
+  async function incrementToyLikes(toyId) {
     const toy = state.toys.get(String(toyId));
 
     if (!toy) {
@@ -731,7 +683,7 @@ export async function initApp() {
 
     try {
       const updatedToy = await likeToy(toy);
-      state.toys.set(String(updatedToy.id), updatedToy);
+      updateToyState(state, updatedToy);
       updateToyLikes(elements.collection, toyId, updatedToy.likes);
 
       if (shouldReorderAfterLike(state)) {
@@ -745,7 +697,7 @@ export async function initApp() {
         renderVisibleToys();
       }
 
-      markToyCardUpdated(elements.collection, toyId);
+      flashToyCard(toyId);
       showAppToast({
         title: "Likes updated",
         message: `${updatedToy.name} now has ${updatedToy.likes} likes.`,
@@ -756,7 +708,7 @@ export async function initApp() {
       console.error(`Failed to like toy ${toyId}`, error);
       showAppToast({
         title: "Like failed",
-        message: getErrorMessage(error, "The like count could not be updated."),
+        message: getToastMessage(error, "The like count could not be updated."),
         variant: "danger",
         delay: 5000,
       });
@@ -765,7 +717,7 @@ export async function initApp() {
     }
   }
 
-  async function handleDeleteToy() {
+  async function submitDeleteToy() {
     if (!state.confirmDeleteToyId) {
       return;
     }
@@ -785,7 +737,7 @@ export async function initApp() {
       await deleteToy(toyId);
       modalConfirm.hide();
       await animateToyRemoval(elements.collection, toyId);
-      state.toys.delete(toyId);
+      removeToyState(state, toyId);
       renderVisibleToys();
       state.confirmDeleteToyId = null;
       showAppToast({
@@ -798,14 +750,14 @@ export async function initApp() {
       setToyCardBusy(elements.collection, toyId, false);
       showAppToast({
         title: "Delete failed",
-        message: getErrorMessage(error, "The toy could not be deleted."),
+        message: getToastMessage(error, "The toy could not be deleted."),
         variant: "danger",
         delay: 3600,
       });
     }
   }
 
-  function handleCollectionClick(event) {
+  function handleToyAction(event) {
     const actionButton = event.target.closest("button[data-action]");
 
     if (!actionButton) {
@@ -825,12 +777,12 @@ export async function initApp() {
     }
 
     if (actionButton.dataset.action === "edit") {
-      beginEditToy(toyId);
+      openEditToy(toyId);
       return;
     }
 
     if (actionButton.dataset.action === "like") {
-      handleLikeToy(toyId);
+      incrementToyLikes(toyId);
       return;
     }
 
@@ -854,30 +806,42 @@ export async function initApp() {
     addToyModal.show();
   });
   elements.addToyModal.addEventListener("shown.bs.modal", () => {
-    elements.addToyForm.querySelector("[name='name']")?.focus();
+    armModalBackdropObserver(elements.addToyModal);
+    focusFormField(elements.addToyForm);
     syncFormSubmitState(elements.addToyForm);
   });
   elements.addToyModal.addEventListener("hidden.bs.modal", () => {
-    elements.addToyForm.reset();
-    setFormBusyState(elements.addToyForm, false);
-    resetFormValidation(elements.addToyForm);
-    resetImagePreview(elements.addToyForm);
-    syncFormSubmitState(elements.addToyForm);
+    resetManagedForm({
+      form: elements.addToyForm,
+      stopObserver: () => stopModalBackdropObserver(elements.addToyModal),
+      clearBusyState: () => setFormBusyState(elements.addToyForm, false),
+      resetValidation: () => resetFormValidation(elements.addToyForm),
+      resetPreview: () => resetImagePreview(elements.addToyForm),
+      afterReset: () => syncFormSubmitState(elements.addToyForm),
+    });
   });
   elements.editToyModal.addEventListener("shown.bs.modal", () => {
-    elements.editToyForm.querySelector("[name='name']")?.focus();
+    armModalBackdropObserver(elements.editToyModal);
+    focusFormField(elements.editToyForm);
     queueImagePreview(elements.editToyForm, { immediate: true });
     syncFormSubmitState(elements.editToyForm);
   });
   elements.editToyModal.addEventListener("hidden.bs.modal", () => {
     state.editingToyId = null;
-    elements.editToyForm.reset();
-    setFormBusyState(elements.editToyForm, false);
-    resetFormValidation(elements.editToyForm);
-    resetImagePreview(elements.editToyForm);
-    syncFormSubmitState(elements.editToyForm);
+    resetManagedForm({
+      form: elements.editToyForm,
+      stopObserver: () => stopModalBackdropObserver(elements.editToyModal),
+      clearBusyState: () => setFormBusyState(elements.editToyForm, false),
+      resetValidation: () => resetFormValidation(elements.editToyForm),
+      resetPreview: () => resetImagePreview(elements.editToyForm),
+      afterReset: () => syncFormSubmitState(elements.editToyForm),
+    });
+  });
+  elements.deleteModal.addEventListener("shown.bs.modal", () => {
+    armModalBackdropObserver(elements.deleteModal);
   });
   elements.deleteModal.addEventListener("hidden.bs.modal", () => {
+    stopModalBackdropObserver(elements.deleteModal);
     state.confirmDeleteToyId = null;
   });
   elements.addToyForm.addEventListener("input", (event) => {
@@ -896,7 +860,7 @@ export async function initApp() {
       syncFormSubmitState(elements.addToyForm);
     }
   });
-  elements.addToyForm.addEventListener("submit", handleCreateToy);
+  elements.addToyForm.addEventListener("submit", submitCreateToy);
   elements.editToyForm.addEventListener("input", (event) => {
     const field = event.target;
 
@@ -913,17 +877,17 @@ export async function initApp() {
       syncFormSubmitState(elements.editToyForm);
     }
   });
-  elements.editToyForm.addEventListener("submit", handleEditToy);
+  elements.editToyForm.addEventListener("submit", submitUpdateToy);
   elements.searchInput.addEventListener("input", (event) => {
-    state.searchTerm = event.currentTarget.value;
+    setSearchTerm(state, event.currentTarget.value);
     renderVisibleToys();
   });
   elements.sortSelect.addEventListener("change", (event) => {
-    state.sortOrder = event.currentTarget.value;
+    setSortOrder(state, event.currentTarget.value);
     renderVisibleToys();
   });
-  elements.collection.addEventListener("click", handleCollectionClick);
-  elements.deleteConfirmButton.addEventListener("click", handleDeleteToy);
+  elements.collection.addEventListener("click", handleToyAction);
+  elements.deleteConfirmButton.addEventListener("click", submitDeleteToy);
 
   resetImagePreview(elements.addToyForm);
   resetImagePreview(elements.editToyForm);

@@ -186,3 +186,13 @@ export async function deleteToy(toyId) {
 
   return toyId;
 }
+
+export const toyService = {
+  fetchToys,
+  seedDemoToys,
+  fetchOrSeedToys,
+  createToy,
+  updateToy,
+  likeToy,
+  deleteToy,
+};
