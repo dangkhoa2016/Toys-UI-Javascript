@@ -445,6 +445,31 @@ export function setDeleteTarget(modalElement, toy) {
   }
 }
 
+export function setDeleteModalBusy(modalElement, isBusy) {
+  if (!modalElement) {
+    return;
+  }
+
+  const modalCloseButton = modalElement.querySelector(".modal-header .btn-close");
+  const footerCloseButton = modalElement.querySelector(".modal-footer [data-bs-dismiss='modal']");
+  const confirmButton = modalElement.querySelector(".modal-footer .btn-confirm");
+
+  modalElement.dataset.deleteBusy = String(isBusy);
+
+  if (modalCloseButton instanceof HTMLButtonElement) {
+    modalCloseButton.disabled = isBusy;
+    modalCloseButton.classList.toggle("d-none", isBusy);
+  }
+
+  if (footerCloseButton instanceof HTMLButtonElement) {
+    footerCloseButton.disabled = isBusy;
+  }
+
+  if (confirmButton instanceof HTMLButtonElement) {
+    confirmButton.disabled = isBusy;
+  }
+}
+
 export function setEditTarget(modalElement, toy) {
   const toyInfo = modalElement.querySelector(".toy-edit-info");
   const nameInput = modalElement.querySelector("[name='name']");

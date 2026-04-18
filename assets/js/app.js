@@ -44,6 +44,7 @@ import {
   markToyCardUpdated,
   reorderToyCards,
   renderToyList,
+  setDeleteModalBusy,
   setDeleteTarget,
   setEditTarget,
   setFieldError,
@@ -748,19 +749,26 @@ export async function initApp() {
       return;
     }
 
+    if (elements.deleteModal.dataset.deleteBusy === "true") {
+      return;
+    }
+
     const toyId = String(state.confirmDeleteToyId);
     const toy = state.toys.get(toyId);
 
     if (!toy) {
       state.confirmDeleteToyId = null;
+      setDeleteModalBusy(elements.deleteModal, false);
       modalConfirm.hide();
       return;
     }
 
+    setDeleteModalBusy(elements.deleteModal, true);
     setToyCardBusy(elements.collection, toyId, true);
 
     try {
       await deleteToy(toyId);
+      setDeleteModalBusy(elements.deleteModal, false);
       modalConfirm.hide();
       await animateToyRemoval(elements.collection, toyId);
       removeToyState(state, toyId);
@@ -773,6 +781,7 @@ export async function initApp() {
       });
     } catch (error) {
       console.error(`Failed to delete toy ${toyId}`, error);
+      setDeleteModalBusy(elements.deleteModal, false);
       setToyCardBusy(elements.collection, toyId, false);
       showAppToast({
         title: "Delete failed",
@@ -820,6 +829,7 @@ export async function initApp() {
 
     state.confirmDeleteToyId = toyId;
     setDeleteTarget(elements.deleteModal, toy);
+    setDeleteModalBusy(elements.deleteModal, false);
     modalConfirm.show();
   }
 
@@ -865,10 +875,17 @@ export async function initApp() {
   });
   elements.deleteModal.addEventListener("shown.bs.modal", () => {
     armModalBackdropObserver(elements.deleteModal);
+    setDeleteModalBusy(elements.deleteModal, false);
+  });
+  elements.deleteModal.addEventListener("hide.bs.modal", (event) => {
+    if (elements.deleteModal.dataset.deleteBusy === "true") {
+      event.preventDefault();
+    }
   });
   elements.deleteModal.addEventListener("hidden.bs.modal", () => {
     stopModalBackdropObserver(elements.deleteModal);
     state.confirmDeleteToyId = null;
+    setDeleteModalBusy(elements.deleteModal, false);
   });
   elements.addToyForm.addEventListener("input", (event) => {
     const field = event.target;
