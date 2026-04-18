@@ -1,3 +1,11 @@
+import {
+  TOY_ACTIONS,
+  TOY_ANIMATION_SETTINGS,
+  TOY_COLLECTION_STATUS_VARIANTS,
+  TOY_PREVIEW_STATUS,
+  TOY_TOAST_VARIANTS,
+} from "./config.js";
+
 const activeAnimations = new WeakMap();
 
 function createElement(tagName, className, textContent) {
@@ -62,12 +70,15 @@ function animateCardEntry(card) {
     playAnimation(
       card,
       [
-        { opacity: 0, transform: "translateY(18px) scale(0.98)" },
+        {
+          opacity: 0,
+          transform: `translateY(${TOY_ANIMATION_SETTINGS.CARD_ENTRY_OFFSET_Y_PX}px) scale(${TOY_ANIMATION_SETTINGS.CARD_ENTRY_START_SCALE})`,
+        },
         { opacity: 1, transform: "translateY(0) scale(1)" },
       ],
       {
-        duration: 280,
-        easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+        duration: TOY_ANIMATION_SETTINGS.CARD_ENTRY_DURATION_MS,
+        easing: TOY_ANIMATION_SETTINGS.CARD_ENTRY_EASING,
       }
     );
   });
@@ -113,18 +124,21 @@ function animateRemovalGhosts(ghosts) {
       ghost,
       [
         { opacity: 1, transform: "translateY(0) scale(1)" },
-        { opacity: 0, transform: "translateY(16px) scale(0.97)" },
+        {
+          opacity: 0,
+          transform: `translateY(${TOY_ANIMATION_SETTINGS.CARD_REMOVE_OFFSET_Y_PX}px) scale(${TOY_ANIMATION_SETTINGS.CARD_REMOVE_END_SCALE})`,
+        },
       ],
       {
-        duration: 300,
-        easing: "ease",
+        duration: TOY_ANIMATION_SETTINGS.CARD_REMOVE_DURATION_MS,
+        easing: TOY_ANIMATION_SETTINGS.DEFAULT_EASING,
         fill: "forwards",
       }
     );
 
     if (animation) {
       animation.addEventListener("finish", finish, { once: true });
-      window.setTimeout(finish, 340);
+      window.setTimeout(finish, TOY_ANIMATION_SETTINGS.CARD_REMOVE_FINISH_BUFFER_MS);
       return;
     }
 
@@ -144,7 +158,7 @@ function animateRemovalGhosts(ghosts) {
       { once: true }
     );
 
-    window.setTimeout(finish, 320);
+    window.setTimeout(finish, TOY_ANIMATION_SETTINGS.CARD_REMOVE_FALLBACK_MS);
   });
 }
 
@@ -168,8 +182,8 @@ function animateCardMove(card, previousRect) {
       { transform: "translate(0, 0)" },
     ],
     {
-      duration: 320,
-      easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+      duration: TOY_ANIMATION_SETTINGS.CARD_MOVE_DURATION_MS,
+      easing: TOY_ANIMATION_SETTINGS.CARD_MOVE_EASING,
     }
   );
 
@@ -209,12 +223,12 @@ function animateLikesCountChange(likesCount) {
     likesCount,
     [
       { transform: "scale(1)", opacity: 1 },
-      { transform: "scale(1.2)", opacity: 1 },
+      { transform: `scale(${TOY_ANIMATION_SETTINGS.LIKES_POP_PEAK_SCALE})`, opacity: 1 },
       { transform: "scale(1)", opacity: 1 },
     ],
     {
-      duration: 360,
-      easing: "ease",
+      duration: TOY_ANIMATION_SETTINGS.LIKES_POP_DURATION_MS,
+      easing: TOY_ANIMATION_SETTINGS.DEFAULT_EASING,
     }
   );
 
@@ -253,17 +267,17 @@ function createToyCard(toy) {
   const buttonRow = createElement("div", "d-flex gap-2 flex-wrap toy-card-actions");
   const likeButton = createElement("button", "btn btn-success");
   likeButton.type = "button";
-  likeButton.dataset.action = "like";
+  likeButton.dataset.action = TOY_ACTIONS.LIKE;
   likeButton.textContent = "Like <3";
 
   const editButton = createElement("button", "btn btn-outline-primary");
   editButton.type = "button";
-  editButton.dataset.action = "edit";
+  editButton.dataset.action = TOY_ACTIONS.EDIT;
   editButton.textContent = "Edit";
 
   const deleteButton = createElement("button", "btn btn-danger");
   deleteButton.type = "button";
-  deleteButton.dataset.action = "delete";
+  deleteButton.dataset.action = TOY_ACTIONS.DELETE;
   deleteButton.textContent = "Delete";
 
   buttonRow.append(likeButton, editButton, deleteButton);
@@ -296,10 +310,10 @@ function syncToyCard(card, toy) {
   }
 }
 
-function createCollectionStatus(message, variant = "info") {
+function createCollectionStatus(message, variant = TOY_COLLECTION_STATUS_VARIANTS.INFO) {
   const wrapper = createElement("div", "col-12 toy-status-shell");
   const alertClassName =
-    variant === "error"
+    variant === TOY_COLLECTION_STATUS_VARIANTS.ERROR
       ? "alert alert-danger toy-status-alert"
       : "alert alert-light toy-status-alert toy-status-alert-info";
   const state = createElement("div", alertClassName);
@@ -307,12 +321,12 @@ function createCollectionStatus(message, variant = "info") {
 
   state.setAttribute("role", "alert");
 
-  if (variant === "error") {
+  if (variant === TOY_COLLECTION_STATUS_VARIANTS.ERROR) {
     const actionRow = createElement("div", "toy-status-actions mt-3");
     const reloadButton = createElement("button", "btn btn-danger toy-status-reload");
 
     reloadButton.type = "button";
-    reloadButton.dataset.action = "reload";
+    reloadButton.dataset.action = TOY_ACTIONS.RELOAD;
     reloadButton.textContent = "Reload data";
 
     actionRow.append(reloadButton);
@@ -485,7 +499,7 @@ export function resetFormValidation(form) {
 export function setImagePreview(
   form,
   {
-    status = "idle",
+    status = TOY_PREVIEW_STATUS.IDLE,
     src = "",
     alt = "Toy image preview",
     message = "",
@@ -504,10 +518,10 @@ export function setImagePreview(
 
   previewFrame.dataset.previewState = status;
   previewStatus.textContent = message;
-  previewLoader.classList.toggle("d-none", status !== "pending");
-  previewPlaceholder.classList.toggle("d-none", status === "pending");
+  previewLoader.classList.toggle("d-none", status !== TOY_PREVIEW_STATUS.PENDING);
+  previewPlaceholder.classList.toggle("d-none", status === TOY_PREVIEW_STATUS.PENDING);
 
-  if (status === "ready" && src) {
+  if (status === TOY_PREVIEW_STATUS.READY && src) {
     previewImage.src = src;
     previewImage.alt = alt;
     previewImage.classList.remove("d-none");
@@ -519,7 +533,7 @@ export function setImagePreview(
   previewImage.removeAttribute("src");
   previewImage.alt = alt;
   previewImage.classList.add("d-none");
-  if (status !== "pending") {
+  if (status !== TOY_PREVIEW_STATUS.PENDING) {
     previewPlaceholder.classList.remove("d-none");
   }
   previewPlaceholder.textContent = placeholderMessage;
@@ -608,11 +622,11 @@ export function animateToyRemoval(container, toyId) {
     animateRemovalGhosts([ghost]);
     window.setTimeout(() => {
       resolve(true);
-    }, 320);
+    }, TOY_ANIMATION_SETTINGS.TOY_REMOVE_RESOLVE_MS);
   });
 }
 
-export function createToast({ title, message, variant = "primary" }) {
+export function createToast({ title, message, variant = TOY_TOAST_VARIANTS.PRIMARY }) {
   const toast = createElement("div", `toast toy-toast toy-toast-${variant}`);
   const layout = createElement("div", "d-flex justify-content-between");
   const body = createElement("div", "toast-body");
@@ -636,7 +650,7 @@ export function createToast({ title, message, variant = "primary" }) {
 }
 
 export function showCollectionMessage(container, message) {
-  container.replaceChildren(createCollectionStatus(message, "error"));
+  container.replaceChildren(createCollectionStatus(message, TOY_COLLECTION_STATUS_VARIANTS.ERROR));
 }
 
 export function showSeedingMessage(container) {

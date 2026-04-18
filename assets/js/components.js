@@ -1,3 +1,6 @@
+import { TOY_SORT_ORDERS, TOY_TEMPLATE_SETTINGS } from "./config.js";
+import { TOY_NAME_MAX_LENGTH, TOY_NAME_MIN_LENGTH } from "./toyForm.js";
+
 const templates = {
   addToyForm: `
     <div id='modal-add-toy' class='modal fade' tabindex='-1' aria-labelledby='modal-add-toy-title' aria-hidden='true'>
@@ -27,8 +30,8 @@ const templates = {
                         placeholder="Enter a toy's name..."
                         class='form-control'
                         required
-                        minlength='2'
-                        maxlength='120'
+                        minlength='${TOY_NAME_MIN_LENGTH}'
+                        maxlength='${TOY_NAME_MAX_LENGTH}'
                         autocomplete='off'
                         aria-describedby='toy-name-feedback'
                       />
@@ -114,8 +117,8 @@ const templates = {
                         placeholder="Update the toy's name..."
                         class='form-control'
                         required
-                        minlength='2'
-                        maxlength='120'
+                        minlength='${TOY_NAME_MIN_LENGTH}'
+                        maxlength='${TOY_NAME_MAX_LENGTH}'
                         autocomplete='off'
                         aria-describedby='edit-toy-name-feedback'
                       />
@@ -201,9 +204,9 @@ const templates = {
                   <label class='toy-field h-100 d-flex flex-column'>
                     <span class='toy-field-label'>Sort by likes</span>
                     <select id='toy-sort' class='form-select toy-control-input'>
-                      <option value='default'>Default order</option>
-                      <option value='likes-desc'>Most liked first</option>
-                      <option value='likes-asc'>Least liked first</option>
+                      <option value='${TOY_SORT_ORDERS.DEFAULT}'>Default order</option>
+                      <option value='${TOY_SORT_ORDERS.LIKES_DESC}'>Most liked first</option>
+                      <option value='${TOY_SORT_ORDERS.LIKES_ASC}'>Least liked first</option>
                     </select>
                   </label>
                 </div>
@@ -255,7 +258,7 @@ const templates = {
         </div>
       </div>
     `;
-    return Array.from({ length: 4 }, () => card).join("");
+    return Array.from({ length: TOY_TEMPLATE_SETTINGS.SKELETON_CARD_COUNT }, () => card).join("");
   })(),
   mosaicLoader: `
     <div class='loader d-none'>

@@ -57,7 +57,18 @@ import {
   toggleVisibility,
   updateToyLikes,
 } from "./dom.js";
-import { toApiImageUrl } from "./config.js";
+import {
+  TOY_ACTIONS,
+  TOY_FORM_EDITABLE_FIELDS,
+  TOY_FORM_FIELD_NAMES,
+  TOY_PREVIEW_STATUS,
+  TOY_SORT_ORDERS,
+  TOY_TOAST_SETTINGS,
+  TOY_TOAST_VARIANTS,
+  TOY_UI_DELAYS,
+  TOY_UI_LIMITS,
+  toApiImageUrl,
+} from "./config.js";
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -66,6 +77,8 @@ function sleep(ms) {
 const previewStateByForm = new WeakMap();
 const formBusyStateByForm = new WeakMap();
 let highlightedToyTimer = 0;
+const NAME_FIELD = TOY_FORM_FIELD_NAMES.NAME;
+const IMAGE_FIELD = TOY_FORM_FIELD_NAMES.IMAGE;
 
 function requireElement(selector) {
   const element = document.querySelector(selector);
@@ -78,11 +91,11 @@ function requireElement(selector) {
 }
 
 function shouldRerenderAfterLike(state) {
-  return state.sortOrder !== "default";
+  return state.sortOrder !== TOY_SORT_ORDERS.DEFAULT;
 }
 
 function shouldReorderAfterLike(state) {
-  return state.sortOrder === "likes-desc" || state.sortOrder === "likes-asc";
+  return state.sortOrder === TOY_SORT_ORDERS.LIKES_DESC || state.sortOrder === TOY_SORT_ORDERS.LIKES_ASC;
 }
 
 function getFormBusyState(form) {
@@ -127,7 +140,7 @@ function getPreviewState(form) {
 
   const nextState = {
     source: "",
-    status: "idle",
+    status: TOY_PREVIEW_STATUS.IDLE,
     timeoutId: 0,
     token: 0,
   };
@@ -156,17 +169,17 @@ function readToyFormValues(form) {
   const formData = new FormData(form);
 
   return {
-    name: String(formData.get("name") ?? "").trim(),
-    image: String(formData.get("image") ?? "").trim(),
+    name: String(formData.get(NAME_FIELD) ?? "").trim(),
+    image: String(formData.get(IMAGE_FIELD) ?? "").trim(),
   };
 }
 
 function validateToyField(fieldName, values) {
-  if (fieldName === "name") {
+  if (fieldName === NAME_FIELD) {
     return getNameError(values.name);
   }
 
-  if (fieldName === "image") {
+  if (fieldName === IMAGE_FIELD) {
     const normalizedImageUrl = toApiImageUrl(values.image);
 
     return getImageError({
@@ -180,12 +193,12 @@ function validateToyField(fieldName, values) {
 
 function inspectToyForm(form, { currentToy = null } = {}) {
   const values = readToyFormValues(form);
-  const fieldNames = ["name", "image"];
+  const fieldNames = TOY_FORM_EDITABLE_FIELDS;
   const fieldErrors = new Map(
     fieldNames.map((fieldName) => [fieldName, validateToyField(fieldName, values)])
   );
   const hasFieldErrors = Array.from(fieldErrors.values()).some(Boolean);
-  const normalizedImageUrl = values.image && !fieldErrors.get("image") ? toApiImageUrl(values.image) : "";
+  const normalizedImageUrl = values.image && !fieldErrors.get(IMAGE_FIELD) ? toApiImageUrl(values.image) : "";
   let isUnchanged = false;
 
   if (currentToy && !hasFieldErrors) {
@@ -204,7 +217,7 @@ function inspectToyForm(form, { currentToy = null } = {}) {
 }
 
 function getPreviewErrorMessage(formState, previewState) {
-  if (formState.fieldErrors.get("image") || !formState.normalizedImageUrl) {
+  if (formState.fieldErrors.get(IMAGE_FIELD) || !formState.normalizedImageUrl) {
     return "";
   }
 
@@ -232,7 +245,7 @@ function validateToyForm(form, { currentToy = null } = {}) {
   });
 
   if (previewErrorMessage) {
-    setFieldError(form, "image", previewErrorMessage);
+    setFieldError(form, IMAGE_FIELD, previewErrorMessage);
   }
 
   if (!formState.hasFieldErrors && !previewErrorMessage && formState.isUnchanged) {
@@ -242,8 +255,8 @@ function validateToyForm(form, { currentToy = null } = {}) {
 
   if (!formState.hasFieldErrors && !previewErrorMessage) {
     const disableReason = getSubmitDisableReason({
-      nameError: formState.fieldErrors.get("name"),
-      imageError: formState.fieldErrors.get("image"),
+      nameError: formState.fieldErrors.get(NAME_FIELD),
+      imageError: formState.fieldErrors.get(IMAGE_FIELD),
       unchangedSubmitMessage: formState.isUnchanged ? "Update the name or image to enable save." : "",
       normalizedImageUrl: formState.normalizedImageUrl,
       preview: previewState,
@@ -278,12 +291,12 @@ function resetImagePreview(form) {
   clearPreviewTimer(form);
   patchPreviewState(form, {
     source: "",
-    status: "idle",
+    status: TOY_PREVIEW_STATUS.IDLE,
     timeoutId: 0,
     token: getPreviewState(form).token + 1,
   });
   setImagePreview(form, {
-    status: "idle",
+    status: TOY_PREVIEW_STATUS.IDLE,
     message: CREATE_PREVIEW_MESSAGE,
     placeholderMessage: DEFAULT_PREVIEW_PLACEHOLDER,
   });
@@ -312,7 +325,12 @@ export async function initApp() {
   const editToyModal = new bootstrap.Modal(elements.editToyModal);
   const modalConfirm = new bootstrap.Modal(elements.deleteModal);
 
-  function showAppToast({ title, message, variant = "primary", delay = 5000 }) {
+  function showAppToast({
+    title,
+    message,
+    variant = TOY_TOAST_VARIANTS.PRIMARY,
+    delay = TOY_TOAST_SETTINGS.DEFAULT_DELAY_MS,
+  }) {
     const toastPayload = addToastState(state, { title, message, variant, delay });
     const toastElement = createToast(toastPayload);
     const toast = new bootstrap.Toast(toastElement, {
@@ -352,7 +370,7 @@ export async function initApp() {
     highlightedToyTimer = window.setTimeout(() => {
       clearHighlightedToyState(state);
       highlightedToyTimer = 0;
-    }, 700);
+    }, TOY_UI_DELAYS.HIGHLIGHT_RESET_MS);
   }
 
   function getCurrentToyForForm(form) {
@@ -376,8 +394,8 @@ export async function initApp() {
     const disableReason = formBusyState.isBusy
       ? formBusyState.label || "Submitting your request..."
       : getSubmitDisableReason({
-          nameError: formState.fieldErrors.get("name"),
-          imageError: formState.fieldErrors.get("image"),
+          nameError: formState.fieldErrors.get(NAME_FIELD),
+          imageError: formState.fieldErrors.get(IMAGE_FIELD),
           unchangedSubmitMessage: formState.isUnchanged ? "Update the name or image to enable save." : "",
           normalizedImageUrl: formState.normalizedImageUrl,
           preview: previewState,
@@ -395,14 +413,14 @@ export async function initApp() {
 
     clearPreviewTimer(form);
 
-    if (formState.fieldErrors.get("image")) {
+    if (formState.fieldErrors.get(IMAGE_FIELD)) {
       patchPreviewState(form, {
         source: "",
-        status: "idle",
+        status: TOY_PREVIEW_STATUS.IDLE,
         timeoutId: 0,
       });
       setImagePreview(form, {
-        status: "idle",
+        status: TOY_PREVIEW_STATUS.IDLE,
         alt: `${formState.values.name || "Toy"} image preview`,
         message: "Enter a valid image URL or local toy image path to unlock submit.",
         placeholderMessage: INVALID_PREVIEW_PLACEHOLDER,
@@ -419,7 +437,7 @@ export async function initApp() {
 
     if (
       previewState.source === formState.normalizedImageUrl &&
-      (previewState.status === "pending" || previewState.status === "ready")
+      (previewState.status === TOY_PREVIEW_STATUS.PENDING || previewState.status === TOY_PREVIEW_STATUS.READY)
     ) {
       syncFormSubmitState(form);
       return;
@@ -429,12 +447,12 @@ export async function initApp() {
     const schedulePreviewCheck = () => {
       patchPreviewState(form, {
         source: formState.normalizedImageUrl,
-        status: "pending",
+        status: TOY_PREVIEW_STATUS.PENDING,
         timeoutId: 0,
         token: nextToken,
       });
       setImagePreview(form, {
-        status: "pending",
+        status: TOY_PREVIEW_STATUS.PENDING,
         alt: `${formState.values.name || "Toy"} image preview`,
         message: CHECKING_PREVIEW_MESSAGE,
         placeholderMessage: CHECKING_PREVIEW_PLACEHOLDER,
@@ -453,12 +471,12 @@ export async function initApp() {
           }
 
           patchPreviewState(form, {
-            status: "ready",
+            status: TOY_PREVIEW_STATUS.READY,
             timeoutId: 0,
           });
-          setFieldError(form, "image", validateToyField("image", readToyFormValues(form)));
+          setFieldError(form, IMAGE_FIELD, validateToyField(IMAGE_FIELD, readToyFormValues(form)));
           setImagePreview(form, {
-            status: "ready",
+            status: TOY_PREVIEW_STATUS.READY,
             src: formState.normalizedImageUrl,
             alt: `${formState.values.name || "Toy"} image preview`,
             message: READY_PREVIEW_MESSAGE,
@@ -476,16 +494,16 @@ export async function initApp() {
           }
 
           patchPreviewState(form, {
-            status: "error",
+            status: TOY_PREVIEW_STATUS.ERROR,
             timeoutId: 0,
           });
           setFieldError(
             form,
-            "image",
+            IMAGE_FIELD,
             TOY_IMAGE_VALIDATION_MESSAGES.previewLoadError
           );
           setImagePreview(form, {
-            status: "error",
+            status: TOY_PREVIEW_STATUS.ERROR,
             alt: `${formState.values.name || "Toy"} image preview`,
             message: LOCKED_PREVIEW_MESSAGE,
             placeholderMessage: ERROR_PREVIEW_PLACEHOLDER,
@@ -503,12 +521,12 @@ export async function initApp() {
 
     patchPreviewState(form, {
       source: formState.normalizedImageUrl,
-      status: "pending",
+      status: TOY_PREVIEW_STATUS.PENDING,
       timeoutId,
       token: nextToken,
     });
     setImagePreview(form, {
-      status: "pending",
+      status: TOY_PREVIEW_STATUS.PENDING,
       alt: `${formState.values.name || "Toy"} image preview`,
       message: CHECKING_PREVIEW_MESSAGE,
       placeholderMessage: CHECKING_PREVIEW_PLACEHOLDER,
@@ -517,7 +535,7 @@ export async function initApp() {
   }
 
   function handleScroll() {
-    toggleVisibility(elements.toTopButton, window.scrollY > 300);
+    toggleVisibility(elements.toTopButton, window.scrollY > TOY_UI_LIMITS.SCROLL_TOP_VISIBLE_OFFSET_PX);
   }
 
   async function loadInitialToys() {
@@ -540,8 +558,8 @@ export async function initApp() {
       showAppToast({
         title: "Unable to load toys",
         message: "The collection could not be loaded from the API.",
-        variant: "danger",
-        delay: 5000,
+        variant: TOY_TOAST_VARIANTS.DANGER,
+        delay: TOY_TOAST_SETTINGS.DEFAULT_DELAY_MS,
       });
     } finally {
       setLoaderVisibility(elements.loader, false);
@@ -582,7 +600,7 @@ export async function initApp() {
       showAppToast({
         title: "Toy created",
         message: `${toy.name} is now on the shelf.`,
-        variant: "success",
+        variant: TOY_TOAST_VARIANTS.SUCCESS,
       });
     } catch (error) {
       console.error("Failed to create toy", error);
@@ -590,8 +608,8 @@ export async function initApp() {
       showAppToast({
         title: "Create failed",
         message: getToastMessage(error, "The toy could not be created."),
-        variant: "danger",
-        delay: 3600,
+        variant: TOY_TOAST_VARIANTS.DANGER,
+        delay: TOY_TOAST_SETTINGS.ERROR_DELAY_MS,
       });
     } finally {
       setFormBusyState(form, false);
@@ -646,7 +664,7 @@ export async function initApp() {
       showAppToast({
         title: "Toy updated",
         message: `${updatedToy.name} was saved successfully.`,
-        variant: "primary",
+        variant: TOY_TOAST_VARIANTS.PRIMARY,
       });
     } catch (error) {
       console.error(`Failed to update toy ${toyId}`, error);
@@ -654,8 +672,8 @@ export async function initApp() {
       showAppToast({
         title: "Update failed",
         message: getToastMessage(error, "The toy could not be updated."),
-        variant: "danger",
-        delay: 3600,
+        variant: TOY_TOAST_VARIANTS.DANGER,
+        delay: TOY_TOAST_SETTINGS.ERROR_DELAY_MS,
       });
     } finally {
       setFormBusyState(form, false);
@@ -709,16 +727,16 @@ export async function initApp() {
       showAppToast({
         title: "Likes updated",
         message: `${updatedToy.name} now has ${updatedToy.likes} likes.`,
-        variant: "success",
-        delay: 5000,
+        variant: TOY_TOAST_VARIANTS.SUCCESS,
+        delay: TOY_TOAST_SETTINGS.DEFAULT_DELAY_MS,
       });
     } catch (error) {
       console.error(`Failed to like toy ${toyId}`, error);
       showAppToast({
         title: "Like failed",
         message: getToastMessage(error, "The like count could not be updated."),
-        variant: "danger",
-        delay: 5000,
+        variant: TOY_TOAST_VARIANTS.DANGER,
+        delay: TOY_TOAST_SETTINGS.DEFAULT_DELAY_MS,
       });
     } finally {
       setToyCardBusy(elements.collection, toyId, false);
@@ -751,7 +769,7 @@ export async function initApp() {
       showAppToast({
         title: "Toy deleted",
         message: `${toy.name} was removed from the shelf.`,
-        variant: "warning",
+        variant: TOY_TOAST_VARIANTS.WARNING,
       });
     } catch (error) {
       console.error(`Failed to delete toy ${toyId}`, error);
@@ -759,8 +777,8 @@ export async function initApp() {
       showAppToast({
         title: "Delete failed",
         message: getToastMessage(error, "The toy could not be deleted."),
-        variant: "danger",
-        delay: 3600,
+        variant: TOY_TOAST_VARIANTS.DANGER,
+        delay: TOY_TOAST_SETTINGS.ERROR_DELAY_MS,
       });
     }
   }
@@ -772,9 +790,9 @@ export async function initApp() {
       return;
     }
 
-    if (actionButton.dataset.action === "reload") {
+    if (actionButton.dataset.action === TOY_ACTIONS.RELOAD) {
       setLoaderVisibility(elements.loader, true);
-      sleep(500).then(() => loadInitialToys());
+      sleep(TOY_UI_DELAYS.RELOAD_AFTER_MS).then(() => loadInitialToys());
       return;
     }
 
@@ -784,12 +802,12 @@ export async function initApp() {
       return;
     }
 
-    if (actionButton.dataset.action === "edit") {
+    if (actionButton.dataset.action === TOY_ACTIONS.EDIT) {
       openEditToy(toyId);
       return;
     }
 
-    if (actionButton.dataset.action === "like") {
+    if (actionButton.dataset.action === TOY_ACTIONS.LIKE) {
       incrementToyLikes(toyId);
       return;
     }
@@ -855,14 +873,14 @@ export async function initApp() {
   elements.addToyForm.addEventListener("input", (event) => {
     const field = event.target;
 
-    if (!(field instanceof HTMLInputElement) || !["name", "image"].includes(field.name)) {
+    if (!(field instanceof HTMLInputElement) || !TOY_FORM_EDITABLE_FIELDS.includes(field.name)) {
       return;
     }
 
     setFormError(elements.addToyForm, "");
     updateFieldValidation(elements.addToyForm, field.name);
 
-    if (field.name === "image") {
+    if (field.name === IMAGE_FIELD) {
       queueImagePreview(elements.addToyForm);
     } else {
       syncFormSubmitState(elements.addToyForm);
@@ -872,14 +890,14 @@ export async function initApp() {
   elements.editToyForm.addEventListener("input", (event) => {
     const field = event.target;
 
-    if (!(field instanceof HTMLInputElement) || !["name", "image"].includes(field.name)) {
+    if (!(field instanceof HTMLInputElement) || !TOY_FORM_EDITABLE_FIELDS.includes(field.name)) {
       return;
     }
 
     setFormError(elements.editToyForm, "");
     updateFieldValidation(elements.editToyForm, field.name);
 
-    if (field.name === "image") {
+    if (field.name === IMAGE_FIELD) {
       queueImagePreview(elements.editToyForm);
     } else {
       syncFormSubmitState(elements.editToyForm);

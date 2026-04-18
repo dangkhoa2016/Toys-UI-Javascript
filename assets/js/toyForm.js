@@ -1,5 +1,7 @@
-export const TOY_NAME_MIN_LENGTH = 2;
-export const TOY_NAME_MAX_LENGTH = 120;
+import { TOY_ALLOWED_IMAGE_PROTOCOLS, TOY_PREVIEW_STATUS, TOY_VALIDATION_LIMITS } from "./config.js";
+
+export const TOY_NAME_MIN_LENGTH = TOY_VALIDATION_LIMITS.NAME_MIN_LENGTH;
+export const TOY_NAME_MAX_LENGTH = TOY_VALIDATION_LIMITS.NAME_MAX_LENGTH;
 export const IMAGE_PREVIEW_DEBOUNCE_MS = 300;
 export const DEFAULT_PREVIEW_PLACEHOLDER = "Preview will appear here after the image URL is checked.";
 export const INVALID_PREVIEW_PLACEHOLDER = "Enter a valid image URL or local toy image path to preview it.";
@@ -17,7 +19,7 @@ export const TOY_IMAGE_VALIDATION_MESSAGES = Object.freeze({
   previewLoadError: "Image preview could not be loaded. Please check the URL or use another image.",
 });
 
-const ALLOWED_IMAGE_PROTOCOLS = new Set(["http:", "https:"]);
+const ALLOWED_IMAGE_PROTOCOLS = new Set(TOY_ALLOWED_IMAGE_PROTOCOLS);
 
 export function createValidationErrors() {
   return {
@@ -44,7 +46,7 @@ export function createPreviewState({
   placeholderMessage = DEFAULT_PREVIEW_PLACEHOLDER,
 } = {}) {
   return {
-    status: "idle",
+    status: TOY_PREVIEW_STATUS.IDLE,
     src: "",
     source: "",
     message,
@@ -100,7 +102,7 @@ export function getPreviewLoadError({ normalizedImageUrl = "", preview = null } 
     return "";
   }
 
-  if (preview.status === "error" && preview.source === normalizedImageUrl) {
+  if (preview.status === TOY_PREVIEW_STATUS.ERROR && preview.source === normalizedImageUrl) {
     return TOY_IMAGE_VALIDATION_MESSAGES.previewLoadError;
   }
 
@@ -148,15 +150,15 @@ export function getSubmitDisableReason({
     return "";
   }
 
-  if (preview.status === "error" && preview.source === normalizedImageUrl) {
+  if (preview.status === TOY_PREVIEW_STATUS.ERROR && preview.source === normalizedImageUrl) {
     return "Use an image that can be loaded in preview.";
   }
 
-  if (preview.source !== normalizedImageUrl || preview.status === "pending") {
+  if (preview.source !== normalizedImageUrl || preview.status === TOY_PREVIEW_STATUS.PENDING) {
     return "Wait until the image preview finishes loading.";
   }
 
-  if (preview.status !== "ready") {
+  if (preview.status !== TOY_PREVIEW_STATUS.READY) {
     return "Wait until the image preview is ready.";
   }
 
