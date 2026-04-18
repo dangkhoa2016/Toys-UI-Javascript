@@ -341,6 +341,7 @@ export function renderToyList(container, toys, options = {}) {
   }
 
   container.querySelector(".toy-status-shell")?.remove();
+  container.querySelector("toy-skeleton")?.remove();
 
   const nextToyIds = new Set(toys.map((toy) => String(toy.id)));
   const existingCards = getCardsById(container);

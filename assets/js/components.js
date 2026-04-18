@@ -239,6 +239,24 @@ const templates = {
       </div>
     </div>
   `,
+  toySkeletonList: (() => {
+    const card = `
+      <div class='col toy-card-shell'>
+        <div class='card toy-card toy-card-skeleton'>
+          <div class='toy-skeleton-image shimmer-block'></div>
+          <div class='card-body'>
+            <div class='toy-skeleton-line shimmer-block'></div>
+            <div class='toy-skeleton-line toy-skeleton-line-short shimmer-block'></div>
+            <div class='toy-skeleton-actions'>
+              <div class='toy-skeleton-button shimmer-block'></div>
+              <div class='toy-skeleton-button shimmer-block'></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    return Array.from({ length: 4 }, () => card).join("");
+  })(),
   mosaicLoader: `
     <div class='loader d-none'>
       <div class='mosaic-loader'>
@@ -294,6 +312,10 @@ class MosaicLoaderElement extends StaticTemplateElement {
   template = templates.mosaicLoader;
 }
 
+class ToySkeletonElement extends StaticTemplateElement {
+  template = templates.toySkeletonList;
+}
+
 function defineComponent(tagName, elementClass) {
   if (!customElements.get(tagName)) {
     customElements.define(tagName, elementClass);
@@ -306,6 +328,7 @@ export async function registerComponents() {
   defineComponent("top-action", TopActionElement);
   defineComponent("modal-confirm", ModalConfirmElement);
   defineComponent("mosaic-loader", MosaicLoaderElement);
+  defineComponent("toy-skeleton", ToySkeletonElement);
 
   await Promise.all([
     customElements.whenDefined("add-toy-form"),
@@ -313,5 +336,6 @@ export async function registerComponents() {
     customElements.whenDefined("top-action"),
     customElements.whenDefined("modal-confirm"),
     customElements.whenDefined("mosaic-loader"),
+    customElements.whenDefined("toy-skeleton"),
   ]);
 }
