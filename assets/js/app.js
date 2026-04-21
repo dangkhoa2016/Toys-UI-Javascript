@@ -547,8 +547,15 @@ export async function initApp() {
 
       if (toys.length === 0) {
         showSeedingMessage(elements.collection);
-        await seedDemoToys();
-        toys = await fetchToys();
+        const seededToys = [];
+
+        await seedDemoToys((toy) => {
+          seededToys.push(toy);
+          prependToyState(state, toy);
+          renderVisibleToys();
+        });
+
+        toys = seededToys;
       }
 
       syncToyState(state, toys);

@@ -108,7 +108,7 @@ export async function fetchToys() {
   return Array.isArray(toys) ? toys.map(normalizeToy) : [];
 }
 
-export async function seedDemoToys() {
+export async function seedDemoToys(onEach = null) {
   const demoData = await requestJson(DEMO_DATA_PATH);
   const toys = Array.isArray(demoData?.toys) ? demoData.toys.map(normalizeToy) : [];
 
@@ -121,7 +121,11 @@ export async function seedDemoToys() {
           image: toApiImageUrl(toy.image),
           likes: toy.likes,
         })
-      )
+      ).then((result) => {
+        if (onEach) {
+          onEach(normalizeToy(result));
+        }
+      })
     )
   );
 
@@ -135,8 +139,13 @@ export async function fetchOrSeedToys() {
     return toys;
   }
 
-  await seedDemoToys();
-  return fetchToys();
+  const seededToys = [];
+
+  await seedDemoToys((toy) => {
+    seededToys.push(toy);
+  });
+
+  return seededToys;
 }
 
 export async function createToy({ name, image }) {
