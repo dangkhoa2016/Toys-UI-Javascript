@@ -4,7 +4,7 @@ export const TOY_API_URL =
   window.TOY_API_URL ||
   (isLocalDevelopmentHost
     ? "http://localhost:8080/api/toys"
-    : "https://humble-space-happiness-946x5q996j276rv-8080.app.github.dev/api/toys");
+    : "https://toy-api-server-nodejs.dangkhoa.dev/api/toys");
 
 export const DEMO_DATA_PATH = "/assets/db.json";
 export const TOY_IMAGE_DIRECTORY = "/assets/images/toys/";
