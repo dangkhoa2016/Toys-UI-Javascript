@@ -62,6 +62,10 @@ export const TOY_VALIDATION_LIMITS = Object.freeze({
   NAME_MAX_LENGTH: 120,
 });
 
+export const TOY_FORM_TIMINGS = Object.freeze({
+  IMAGE_PREVIEW_DEBOUNCE_MS: 300,
+});
+
 export const TOY_ALLOWED_IMAGE_PROTOCOLS = Object.freeze(["http:", "https:"]);
 
 export const TOY_UI_LIMITS = Object.freeze({

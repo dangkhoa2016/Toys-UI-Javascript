@@ -1,8 +1,8 @@
-import { TOY_ALLOWED_IMAGE_PROTOCOLS, TOY_PREVIEW_STATUS, TOY_VALIDATION_LIMITS } from "./config.js";
+import { TOY_ALLOWED_IMAGE_PROTOCOLS, TOY_FORM_TIMINGS, TOY_PREVIEW_STATUS, TOY_VALIDATION_LIMITS } from "./config.js";
 
 export const TOY_NAME_MIN_LENGTH = TOY_VALIDATION_LIMITS.NAME_MIN_LENGTH;
 export const TOY_NAME_MAX_LENGTH = TOY_VALIDATION_LIMITS.NAME_MAX_LENGTH;
-export const IMAGE_PREVIEW_DEBOUNCE_MS = 300;
+export const IMAGE_PREVIEW_DEBOUNCE_MS = TOY_FORM_TIMINGS.IMAGE_PREVIEW_DEBOUNCE_MS;
 export const DEFAULT_PREVIEW_PLACEHOLDER = "Preview will appear here after the image URL is checked.";
 export const INVALID_PREVIEW_PLACEHOLDER = "Enter a valid image URL or local toy image path to preview it.";
 export const ERROR_PREVIEW_PLACEHOLDER = "This image could not be loaded in preview.";
